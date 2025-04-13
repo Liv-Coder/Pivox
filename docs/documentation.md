@@ -49,65 +49,42 @@ Pivox provides seamless integration with popular Dart HTTP clients like `http` a
 
 ## Basic Usage
 
-### Initializing the Proxy Manager
+### Simplified Initialization
+
+Pivox offers a simplified initialization process with sensible defaults:
 
 ```dart
 import 'package:pivox/pivox.dart';
-import 'package:http/http.dart' as http;
+
+// One-line initialization with default settings
+final httpClient = await Pivox.createHttpClient();
+
+// Make a request using the proxy
+final response = await httpClient.get(
+  Uri.parse('https://api.ipify.org?format=json'),
+);
+
+print('Response: ${response.body}');
+```
+
+### Using the Builder Pattern
+
+For more control, use the builder pattern:
+
+```dart
+import 'package:pivox/pivox.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// Initialize dependencies
+// Get dependencies if you want to reuse existing instances
 final sharedPreferences = await SharedPreferences.getInstance();
-final localDataSource = ProxyLocalDataSourceImpl(
-  sharedPreferences: sharedPreferences,
-);
-final remoteDataSource = ProxyRemoteDataSourceImpl(
-  client: http.Client(),
-);
-final repository = ProxyRepositoryImpl(
-  remoteDataSource: remoteDataSource,
-  localDataSource: localDataSource,
-  client: http.Client(),
-);
 
-// Initialize use cases
-final getProxies = GetProxies(repository);
-final validateProxy = ValidateProxy(repository);
-final getValidatedProxies = GetValidatedProxies(repository);
+// Use the builder pattern for customized setup
+final proxyManager = await Pivox.builder()
+  .withSharedPreferences(sharedPreferences)
+  .withMaxConcurrentValidations(20) // Increase parallel validations
+  .buildProxyManager();
 
-// Initialize proxy manager
-final proxyManager = ProxyManager(
-  getProxies: getProxies,
-  validateProxy: validateProxy,
-  getValidatedProxies: getValidatedProxies,
-);
-```
-
-### Fetching Proxies
-
-```dart
-// Fetch proxies
-final proxies = await proxyManager.fetchProxies(
-  count: 20,
-  onlyHttps: true,
-  countries: ['US', 'CA'],
-);
-
-// Fetch and validate proxies
-final validatedProxies = await proxyManager.fetchValidatedProxies(
-  count: 10,
-  onlyHttps: true,
-  countries: ['US', 'CA'],
-  onProgress: (completed, total) {
-    print('Validated $completed of $total proxies');
-  },
-);
-```
-
-### Using with HTTP Client
-
-```dart
-// Create an HTTP client with proxy support
+// Create an HTTP client with the configured proxy manager
 final httpClient = ProxyHttpClient(
   proxyManager: proxyManager,
   useValidatedProxies: true,
@@ -125,17 +102,17 @@ print('Response: ${response.body}');
 ### Using with Dio
 
 ```dart
+import 'package:pivox/pivox.dart';
 import 'package:dio/dio.dart';
+
+// Quick setup with one line
+final proxyInterceptor = await Pivox.createDioInterceptor();
 
 // Create a Dio instance with proxy support
 final dio = Dio()
-  ..interceptors.add(
-    ProxyInterceptor(
-      proxyManager: proxyManager,
-      useValidatedProxies: true,
-      rotateProxies: true,
-    ),
-  );
+  ..options.connectTimeout = const Duration(seconds: 30)
+  ..options.receiveTimeout = const Duration(seconds: 30)
+  ..interceptors.add(proxyInterceptor);
 
 // Make a request using the proxy
 final response = await dio.get('https://api.ipify.org?format=json');
@@ -150,11 +127,17 @@ print('Response: ${response.data}');
 Pivox supports parallel proxy validation to speed up the validation process:
 
 ```dart
-final repository = ProxyRepositoryImpl(
-  remoteDataSource: remoteDataSource,
-  localDataSource: localDataSource,
-  client: http.Client(),
-  maxConcurrentValidations: 10, // Validate 10 proxies in parallel
+// Get a proxy manager with default settings
+final proxyManager = await Pivox.createProxyManager();
+
+// Fetch and validate proxies with progress tracking
+final validatedProxies = await proxyManager.fetchValidatedProxies(
+  count: 10,
+  onlyHttps: true,
+  countries: ['US', 'CA'],
+  onProgress: (completed, total) {
+    print('Validated $completed of $total proxies');
+  },
 );
 ```
 
@@ -163,6 +146,11 @@ final repository = ProxyRepositoryImpl(
 Pivox includes a sophisticated proxy scoring system that tracks proxy performance:
 
 ```dart
+// Get a proxy manager with customized settings
+final proxyManager = await Pivox.builder()
+  .withMaxConcurrentValidations(15)
+  .buildProxyManager();
+
 // Get a proxy based on its score
 final proxy = proxyManager.getNextProxy(
   validated: true,
@@ -192,6 +180,57 @@ final isValid = await proxyManager.validateSpecificProxy(
 
 ## API Reference
 
+### Pivox (Factory Methods)
+
+```dart
+class Pivox {
+  /// Creates a new PivoxBuilder instance
+  static PivoxBuilder builder();
+  
+  /// Creates a ProxyManager with default settings
+  static Future<ProxyManager> createProxyManager();
+  
+  /// Creates an HTTP client with proxy support using default settings
+  static Future<ProxyHttpClient> createHttpClient();
+  
+  /// Creates a Dio interceptor for proxy support using default settings
+  static Future<ProxyInterceptor> createDioInterceptor();
+}
+```
+
+### PivoxBuilder
+
+```dart
+class PivoxBuilder {
+  /// Sets the HTTP client to use
+  PivoxBuilder withHttpClient(http.Client httpClient);
+  
+  /// Sets the SharedPreferences instance to use
+  PivoxBuilder withSharedPreferences(SharedPreferences sharedPreferences);
+  
+  /// Sets the maximum number of concurrent validations
+  PivoxBuilder withMaxConcurrentValidations(int maxConcurrentValidations);
+  
+  /// Sets whether to use validated proxies by default
+  PivoxBuilder withUseValidatedProxies(bool useValidatedProxies);
+  
+  /// Sets whether to rotate proxies by default
+  PivoxBuilder withRotateProxies(bool rotateProxies);
+  
+  /// Sets the maximum number of retries for Dio requests
+  PivoxBuilder withMaxRetries(int maxRetries);
+  
+  /// Builds a ProxyManager instance
+  Future<ProxyManager> buildProxyManager();
+  
+  /// Builds an HTTP client with proxy support
+  Future<ProxyHttpClient> buildHttpClient();
+  
+  /// Creates a Dio interceptor for proxy support
+  Future<ProxyInterceptor> buildDioInterceptor();
+}
+```
+
 ### Proxy
 
 ```dart
@@ -201,7 +240,7 @@ class Proxy {
   final String? countryCode;
   final bool isHttps;
   final String? anonymityLevel;
-
+  
   const Proxy({
     required this.ip,
     required this.port,
@@ -219,7 +258,7 @@ class ProxyModel extends Proxy {
   final int? lastChecked;
   final int? responseTime;
   final ProxyScore? score;
-
+  
   const ProxyModel({
     required super.ip,
     required super.port,
@@ -230,7 +269,7 @@ class ProxyModel extends Proxy {
     this.responseTime,
     this.score,
   });
-
+  
   // Factory methods and utility functions
   factory ProxyModel.fromJson(Map<String, dynamic> json);
   Map<String, dynamic> toJson();
@@ -249,7 +288,7 @@ class ProxyScore {
   final int successfulRequests;
   final int failedRequests;
   final int lastUsed;
-
+  
   const ProxyScore({
     required this.successRate,
     required this.averageResponseTime,
@@ -257,7 +296,7 @@ class ProxyScore {
     required this.failedRequests,
     required this.lastUsed,
   });
-
+  
   // Factory methods and utility functions
   factory ProxyScore.initial();
   ProxyScore recordSuccess(int responseTime);
@@ -275,44 +314,44 @@ class ProxyManager {
   final GetProxies getProxies;
   final ValidateProxy validateProxy;
   final GetValidatedProxies getValidatedProxies;
-
+  
   ProxyManager({
     required this.getProxies,
     required this.validateProxy,
     required this.getValidatedProxies,
   });
-
+  
   // Methods
   Future<List<Proxy>> fetchProxies({
     int count = 20,
     bool onlyHttps = false,
     List<String>? countries,
   });
-
+  
   Future<List<Proxy>> fetchValidatedProxies({
     int count = 10,
     bool onlyHttps = false,
     List<String>? countries,
     void Function(int completed, int total)? onProgress,
   });
-
+  
   Proxy getNextProxy({
     bool validated = true,
     bool useScoring = false,
   });
-
+  
   Proxy getRandomProxy({
     bool validated = true,
     bool useScoring = false,
   });
-
+  
   Future<bool> validateSpecificProxy(
     Proxy proxy, {
     String? testUrl,
     int timeout = 10000,
     bool updateScore = true,
   });
-
+  
   // Properties
   List<Proxy> get proxies;
   List<Proxy> get validatedProxies;
@@ -329,17 +368,17 @@ class ProxyHttpClient extends http.BaseClient {
     bool useValidatedProxies = true,
     bool rotateProxies = true,
   });
-
+  
   // Methods
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request);
-
+  
   @override
   void close();
-
+  
   // Properties
   Proxy? currentProxy;
-
+  
   // Methods
   void setProxy(Proxy? proxy);
 }
@@ -355,17 +394,17 @@ class ProxyInterceptor extends Interceptor {
     bool rotateProxies = true,
     int maxRetries = 3,
   });
-
+  
   // Methods
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler);
-
+  
   @override
   void onError(DioException err, ErrorInterceptorHandler handler);
-
+  
   // Properties
   Proxy? currentProxy;
-
+  
   // Methods
   void setProxy(Proxy? proxy);
 }
@@ -377,18 +416,11 @@ class ProxyInterceptor extends Interceptor {
 
 ```dart
 import 'package:pivox/pivox.dart';
-import 'package:http/http.dart' as http;
 
 Future<void> main() async {
-  // Initialize Pivox (see Basic Usage)
-
-  // Create an HTTP client with proxy support
-  final httpClient = ProxyHttpClient(
-    proxyManager: proxyManager,
-    useValidatedProxies: true,
-    rotateProxies: true,
-  );
-
+  // Create an HTTP client with proxy support using one line
+  final httpClient = await Pivox.createHttpClient();
+  
   // Scrape a website
   final response = await httpClient.get(
     Uri.parse('https://example.com'),
@@ -396,7 +428,7 @@ Future<void> main() async {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
     },
   );
-
+  
   // Process the response
   if (response.statusCode == 200) {
     print('Successfully scraped the website');
@@ -404,6 +436,9 @@ Future<void> main() async {
   } else {
     print('Failed to scrape the website: ${response.statusCode}');
   }
+  
+  // Don't forget to close the client
+  httpClient.close();
 }
 ```
 
@@ -414,19 +449,14 @@ import 'package:pivox/pivox.dart';
 import 'package:dio/dio.dart';
 
 Future<void> main() async {
-  // Initialize Pivox (see Basic Usage)
-
-  // Create a Dio instance with proxy support
+  // Create a Dio instance with proxy support using one line
+  final proxyInterceptor = await Pivox.createDioInterceptor();
+  
   final dio = Dio()
-    ..interceptors.add(
-      ProxyInterceptor(
-        proxyManager: proxyManager,
-        useValidatedProxies: true,
-        rotateProxies: true,
-        maxRetries: 5, // Retry up to 5 times with different proxies
-      ),
-    );
-
+    ..options.connectTimeout = const Duration(seconds: 30)
+    ..options.receiveTimeout = const Duration(seconds: 30)
+    ..interceptors.add(proxyInterceptor);
+  
   // Test an API
   try {
     final response = await dio.get(
@@ -437,11 +467,14 @@ Future<void> main() async {
         },
       ),
     );
-
+    
     print('API response: ${response.data}');
   } on DioException catch (e) {
     print('API request failed: ${e.message}');
   }
+  
+  // Don't forget to close Dio
+  dio.close();
 }
 ```
 
@@ -452,13 +485,14 @@ Future<void> main() async {
 If you encounter a `NoValidProxiesException`, it means that no valid proxies were found. Try the following:
 
 1. Increase the number of proxies to fetch:
-
    ```dart
+   final proxyManager = await Pivox.builder()
+     .buildProxyManager();
+   
    await proxyManager.fetchProxies(count: 50);
    ```
 
 2. Relax the filtering criteria:
-
    ```dart
    await proxyManager.fetchProxies(onlyHttps: false);
    ```
@@ -470,16 +504,13 @@ If you encounter a `NoValidProxiesException`, it means that no valid proxies wer
 If proxy validation is taking too long, try:
 
 1. Increase the number of concurrent validations:
-
    ```dart
-   final repository = ProxyRepositoryImpl(
-     // ...
-     maxConcurrentValidations: 20,
-   );
+   final proxyManager = await Pivox.builder()
+     .withMaxConcurrentValidations(20)
+     .buildProxyManager();
    ```
 
 2. Reduce the validation timeout:
-
    ```dart
    await proxyManager.validateSpecificProxy(
      proxy,
@@ -493,23 +524,15 @@ If you're experiencing connection failures with proxies:
 
 1. Make sure the proxies support the protocol you're using (HTTP/HTTPS).
 2. Try using validated proxies only:
-
    ```dart
-   final httpClient = ProxyHttpClient(
-     proxyManager: proxyManager,
-     useValidatedProxies: true,
-   );
+   final httpClient = await Pivox.builder()
+     .withUseValidatedProxies(true)
+     .buildHttpClient();
    ```
 
-3. Implement retry logic:
-
+3. Implement retry logic with Dio:
    ```dart
-   final dio = Dio()
-     ..interceptors.add(
-       ProxyInterceptor(
-         proxyManager: proxyManager,
-         useValidatedProxies: true,
-         maxRetries: 5,
-       ),
-     );
+   final proxyInterceptor = await Pivox.builder()
+     .withMaxRetries(5)
+     .buildDioInterceptor();
    ```
