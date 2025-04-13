@@ -15,8 +15,70 @@ void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  ThemeMode _themeMode = ThemeMode.system;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadThemePreference();
+  }
+
+  Future<void> _loadThemePreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    final themeString = prefs.getString('theme_mode') ?? 'system';
+    setState(() {
+      _themeMode = _themeStringToMode(themeString);
+    });
+  }
+
+  Future<void> _saveThemePreference(ThemeMode mode) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('theme_mode', _themeModeToString(mode));
+  }
+
+  String _themeModeToString(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.light:
+        return 'light';
+      case ThemeMode.dark:
+        return 'dark';
+      case ThemeMode.system:
+        return 'system';
+    }
+  }
+
+  ThemeMode _themeStringToMode(String themeString) {
+    switch (themeString) {
+      case 'light':
+        return ThemeMode.light;
+      case 'dark':
+        return ThemeMode.dark;
+      case 'system':
+      default:
+        return ThemeMode.system;
+    }
+  }
+
+  void _toggleTheme() {
+    setState(() {
+      if (_themeMode == ThemeMode.light) {
+        _themeMode = ThemeMode.dark;
+      } else if (_themeMode == ThemeMode.dark) {
+        _themeMode = ThemeMode.system;
+      } else {
+        _themeMode = ThemeMode.light;
+      }
+      _saveThemePreference(_themeMode);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,17 +86,28 @@ class MyApp extends StatelessWidget {
       title: 'Pivox Demo',
       theme: AppTheme.lightTheme(),
       darkTheme: AppTheme.darkTheme(),
-      themeMode: ThemeMode.light,
-      home: const MyHomePage(title: 'Pivox - Free Proxy Rotator'),
+      themeMode: _themeMode,
+      home: MyHomePage(
+        title: 'Pivox - Free Proxy Rotator',
+        toggleTheme: _toggleTheme,
+        themeMode: _themeMode,
+      ),
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+  const MyHomePage({
+    super.key,
+    required this.title,
+    this.toggleTheme,
+    this.themeMode,
+  });
 
   final String title;
+  final VoidCallback? toggleTheme;
+  final ThemeMode? themeMode;
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
@@ -186,7 +259,24 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title), elevation: 0),
+      appBar: AppBar(
+        title: Text(widget.title),
+        elevation: 0,
+        actions: [
+          if (widget.toggleTheme != null)
+            IconButton(
+              icon: Icon(
+                widget.themeMode == ThemeMode.light
+                    ? Ionicons.sunny_outline
+                    : widget.themeMode == ThemeMode.dark
+                    ? Ionicons.moon_outline
+                    : Ionicons.contrast_outline,
+              ),
+              onPressed: widget.toggleTheme,
+              tooltip: 'Toggle theme',
+            ),
+        ],
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(DesignTokens.spacingMedium),

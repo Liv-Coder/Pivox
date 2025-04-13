@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 
 import '../../../../core/errors/exceptions.dart';
+import '../../../../core/utils/parallel_processor.dart';
 import '../../domain/entities/proxy.dart';
 import '../../domain/repositories/proxy_repository.dart';
 import '../datasources/proxy_local_datasource.dart';
@@ -12,19 +13,28 @@ import '../models/proxy_model.dart';
 class ProxyRepositoryImpl implements ProxyRepository {
   /// Remote data source for fetching proxies
   final ProxyRemoteDataSource remoteDataSource;
-  
+
   /// Local data source for caching proxies
   final ProxyLocalDataSource localDataSource;
-  
+
   /// HTTP client for validating proxies
   final http.Client client;
 
+  /// Parallel processor for validating proxies
+  final ParallelProcessor<Proxy, bool> _parallelProcessor;
+
+  /// Maximum number of concurrent validation tasks
+  final int maxConcurrentValidations;
+
   /// Creates a new [ProxyRepositoryImpl] with the given dependencies
-  const ProxyRepositoryImpl({
+  ProxyRepositoryImpl({
     required this.remoteDataSource,
     required this.localDataSource,
     required this.client,
-  });
+    this.maxConcurrentValidations = 5,
+  }) : _parallelProcessor = ParallelProcessor<Proxy, bool>(
+         maxConcurrency: maxConcurrentValidations,
+       );
 
   @override
   Future<List<Proxy>> fetchProxies({
@@ -39,29 +49,31 @@ class ProxyRepositoryImpl implements ProxyRepository {
         onlyHttps: onlyHttps,
         countries: countries,
       );
-      
+
       // Cache the fetched proxies
       await localDataSource.cacheProxies(remoteProxies);
-      
+
       return remoteProxies;
     } catch (e) {
       // If remote fetch fails, try to get cached proxies
       try {
         final cachedProxies = await localDataSource.getCachedProxies();
-        
+
         // Filter cached proxies based on the parameters
-        final filteredProxies = cachedProxies.where((proxy) {
-          if (onlyHttps && !proxy.isHttps) return false;
-          
-          if (countries != null && countries.isNotEmpty && 
-              proxy.countryCode != null && 
-              !countries.contains(proxy.countryCode)) {
-            return false;
-          }
-          
-          return true;
-        }).toList();
-        
+        final filteredProxies =
+            cachedProxies.where((proxy) {
+              if (onlyHttps && !proxy.isHttps) return false;
+
+              if (countries != null &&
+                  countries.isNotEmpty &&
+                  proxy.countryCode != null &&
+                  !countries.contains(proxy.countryCode)) {
+                return false;
+              }
+
+              return true;
+            }).toList();
+
         return filteredProxies.take(count).toList();
       } catch (_) {
         // If both remote and cache fail, rethrow the original exception
@@ -78,22 +90,22 @@ class ProxyRepositoryImpl implements ProxyRepository {
   }) async {
     final url = testUrl ?? 'https://www.google.com';
     final uri = Uri.parse(url);
-    
+
     try {
       final httpClient = HttpClient();
       httpClient.connectionTimeout = Duration(milliseconds: timeout);
-      
+
       // Set up the proxy
       httpClient.findProxy = (uri) {
         return 'PROXY ${proxy.ip}:${proxy.port}';
       };
-      
+
       final request = await httpClient.getUrl(uri);
       final response = await request.close();
-      
+
       // Close the client
       httpClient.close();
-      
+
       // Check if the response is successful
       return response.statusCode >= 200 && response.statusCode < 300;
     } catch (e) {
@@ -106,54 +118,65 @@ class ProxyRepositoryImpl implements ProxyRepository {
     int count = 10,
     bool onlyHttps = false,
     List<String>? countries,
+    void Function(int completed, int total)? onProgress,
   }) async {
     try {
       // Try to get cached validated proxies first
-      final cachedValidatedProxies = await localDataSource.getCachedValidatedProxies();
-      
+      final cachedValidatedProxies =
+          await localDataSource.getCachedValidatedProxies();
+
       // Filter cached validated proxies based on the parameters
-      final filteredProxies = cachedValidatedProxies.where((proxy) {
-        if (onlyHttps && !proxy.isHttps) return false;
-        
-        if (countries != null && countries.isNotEmpty && 
-            proxy.countryCode != null && 
-            !countries.contains(proxy.countryCode)) {
-          return false;
-        }
-        
-        return true;
-      }).toList();
-      
+      final filteredProxies =
+          cachedValidatedProxies.where((proxy) {
+            if (onlyHttps && !proxy.isHttps) return false;
+
+            if (countries != null &&
+                countries.isNotEmpty &&
+                proxy.countryCode != null &&
+                !countries.contains(proxy.countryCode)) {
+              return false;
+            }
+
+            return true;
+          }).toList();
+
       if (filteredProxies.isNotEmpty) {
         return filteredProxies.take(count).toList();
       }
-      
+
       // If no cached validated proxies, fetch new proxies and validate them
       final proxies = await fetchProxies(
-        count: count * 3, // Fetch more to increase chances of finding valid ones
+        count:
+            count * 3, // Fetch more to increase chances of finding valid ones
         onlyHttps: onlyHttps,
         countries: countries,
       );
-      
+
+      // Validate proxies in parallel
+      final validationResults = await _parallelProcessor.process(
+        items: proxies,
+        processFunction: (proxy) => validateProxy(proxy),
+        onProgress: onProgress,
+      );
+
+      // Collect validated proxies
       final validatedProxies = <ProxyModel>[];
-      
-      for (final proxy in proxies) {
+
+      for (var i = 0; i < proxies.length; i++) {
         if (validatedProxies.length >= count) break;
-        
-        final isValid = await validateProxy(proxy);
-        
-        if (isValid) {
-          final proxyModel = proxy is ProxyModel
-              ? proxy
-              : ProxyModel.fromEntity(proxy);
-          
+
+        if (validationResults[i]) {
+          final proxy = proxies[i];
+          final proxyModel =
+              proxy is ProxyModel ? proxy : ProxyModel.fromEntity(proxy);
+
           validatedProxies.add(proxyModel);
         }
       }
-      
+
       // Cache the validated proxies
       await localDataSource.cacheValidatedProxies(validatedProxies);
-      
+
       return validatedProxies;
     } catch (e) {
       throw ProxyFetchException('Failed to get validated proxies: $e');

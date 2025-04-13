@@ -1,4 +1,5 @@
 import '../../domain/entities/proxy.dart';
+import '../../domain/entities/proxy_score.dart';
 
 /// Data model for a proxy server
 class ProxyModel extends Proxy {
@@ -7,6 +8,9 @@ class ProxyModel extends Proxy {
 
   /// Response time of the proxy in milliseconds (optional)
   final int? responseTime;
+
+  /// Score of the proxy (optional)
+  final ProxyScore? score;
 
   /// Creates a new [ProxyModel] instance
   const ProxyModel({
@@ -17,6 +21,7 @@ class ProxyModel extends Proxy {
     super.anonymityLevel,
     this.lastChecked,
     this.responseTime,
+    this.score,
   });
 
   /// Creates a [ProxyModel] from a JSON map
@@ -29,6 +34,10 @@ class ProxyModel extends Proxy {
       anonymityLevel: json['anonymityLevel'] as String?,
       lastChecked: json['lastChecked'] as int?,
       responseTime: json['responseTime'] as int?,
+      score:
+          json['score'] != null
+              ? ProxyScore.fromJson(json['score'] as Map<String, dynamic>)
+              : null,
     );
   }
 
@@ -42,6 +51,7 @@ class ProxyModel extends Proxy {
       if (anonymityLevel != null) 'anonymityLevel': anonymityLevel,
       if (lastChecked != null) 'lastChecked': lastChecked,
       if (responseTime != null) 'responseTime': responseTime,
+      if (score != null) 'score': score!.toJson(),
     };
   }
 
@@ -55,6 +65,41 @@ class ProxyModel extends Proxy {
       anonymityLevel: proxy.anonymityLevel,
       lastChecked: null,
       responseTime: null,
+      score: ProxyScore.initial(),
+    );
+  }
+
+  /// Creates a new [ProxyModel] with an updated score after a successful request
+  ProxyModel withSuccessfulRequest(int responseTime) {
+    final newScore = (score ?? ProxyScore.initial()).recordSuccess(
+      responseTime,
+    );
+
+    return ProxyModel(
+      ip: ip,
+      port: port,
+      countryCode: countryCode,
+      isHttps: isHttps,
+      anonymityLevel: anonymityLevel,
+      lastChecked: DateTime.now().millisecondsSinceEpoch,
+      responseTime: responseTime,
+      score: newScore,
+    );
+  }
+
+  /// Creates a new [ProxyModel] with an updated score after a failed request
+  ProxyModel withFailedRequest() {
+    final newScore = (score ?? ProxyScore.initial()).recordFailure();
+
+    return ProxyModel(
+      ip: ip,
+      port: port,
+      countryCode: countryCode,
+      isHttps: isHttps,
+      anonymityLevel: anonymityLevel,
+      lastChecked: DateTime.now().millisecondsSinceEpoch,
+      responseTime: responseTime,
+      score: newScore,
     );
   }
 }
