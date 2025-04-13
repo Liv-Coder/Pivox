@@ -66,6 +66,18 @@ class ProxyHttpClient extends http.BaseClient {
     final httpClient = HttpClient();
     httpClient.findProxy = (uri) => 'PROXY $proxyUrl';
 
+    // Set up authentication if needed
+    if (proxy.isAuthenticated) {
+      httpClient.authenticate = (Uri url, String scheme, String? realm) {
+        httpClient.addCredentials(
+          url,
+          realm ?? '',
+          HttpClientBasicCredentials(proxy.username!, proxy.password!),
+        );
+        return Future.value(true);
+      };
+    }
+
     // Convert the request to an HttpClientRequest
     final url = request.url;
     final httpRequest = await httpClient.openUrl(request.method, url);

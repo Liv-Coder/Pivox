@@ -9,6 +9,8 @@ import '../../../../core/services/theme_manager.dart';
 import '../../../../core/widgets/action_button.dart';
 import '../../../../core/widgets/proxy_card.dart';
 import '../../../../core/widgets/status_card.dart';
+import '../../../advanced_filtering/presentation/screens/advanced_filtering_screen.dart';
+import '../../../analytics/presentation/screens/analytics_screen.dart';
 
 /// Home screen for the Pivox example app
 class HomeScreen extends StatefulWidget {
@@ -39,8 +41,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final proxies = await _proxyService.fetchProxies(
-        count: 20,
-        onlyHttps: true,
+        options: ProxyFilterOptions(count: 20, onlyHttps: true),
       );
 
       setState(() {
@@ -152,11 +153,45 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (constraints.maxWidth < 600) {
                   return Column(
                     children: [
-                      ActionButton(
-                        onPressed: _fetchProxies,
-                        icon: Ionicons.refresh_outline,
-                        text: 'Fetch Proxies',
-                        isLoading: _isLoading,
+                      Column(
+                        children: [
+                          ActionButton(
+                            onPressed: _fetchProxies,
+                            icon: Ionicons.refresh_outline,
+                            text: 'Fetch Proxies',
+                            isLoading: _isLoading,
+                          ),
+                          const SizedBox(height: DesignTokens.spacingMedium),
+                          ActionButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) =>
+                                          const AdvancedFilteringScreen(),
+                                ),
+                              );
+                            },
+                            icon: Ionicons.options_outline,
+                            text: 'Advanced Filtering',
+                            isLoading: false,
+                          ),
+                          const SizedBox(height: DesignTokens.spacingMedium),
+                          ActionButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const AnalyticsScreen(),
+                                ),
+                              );
+                            },
+                            icon: Ionicons.analytics_outline,
+                            text: 'Proxy Analytics',
+                            isLoading: false,
+                          ),
+                        ],
                       ),
                       const SizedBox(height: DesignTokens.spacingMedium),
                       Row(

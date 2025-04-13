@@ -2,6 +2,7 @@
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as parser;
 
+import '../../../../core/config/proxy_source_config.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../models/proxy_model.dart';
@@ -13,10 +14,14 @@ abstract class ProxyRemoteDataSource {
   /// [count] is the number of proxies to fetch
   /// [onlyHttps] filters to only return HTTPS proxies
   /// [countries] filters to only return proxies from specific countries
+  /// [regions] filters to only return proxies from specific regions
+  /// [isps] filters to only return proxies from specific ISPs
   Future<List<ProxyModel>> fetchProxies({
     int count = 20,
     bool onlyHttps = false,
     List<String>? countries,
+    List<String>? regions,
+    List<String>? isps,
   });
 }
 
@@ -25,19 +30,27 @@ class ProxyRemoteDataSourceImpl implements ProxyRemoteDataSource {
   /// HTTP client for making requests
   final http.Client client;
 
-  /// Creates a new [ProxyRemoteDataSourceImpl] with the given [client]
-  const ProxyRemoteDataSourceImpl({required this.client});
+  /// Configuration for proxy sources
+  final ProxySourceConfig sourceConfig;
+
+  /// Creates a new [ProxyRemoteDataSourceImpl] with the given [client] and [sourceConfig]
+  const ProxyRemoteDataSourceImpl({
+    required this.client,
+    this.sourceConfig = const ProxySourceConfig(),
+  });
 
   @override
   Future<List<ProxyModel>> fetchProxies({
     int count = 20,
     bool onlyHttps = false,
     List<String>? countries,
+    List<String>? regions,
+    List<String>? isps,
   }) async {
     final proxies = <ProxyModel>[];
 
-    // Try each source until we have enough proxies
-    for (final url in AppConstants.proxySourceUrls) {
+    // Try each enabled source until we have enough proxies
+    for (final url in sourceConfig.getEnabledSourceUrls()) {
       if (proxies.length >= count) break;
 
       try {
@@ -45,6 +58,8 @@ class ProxyRemoteDataSourceImpl implements ProxyRemoteDataSource {
           url,
           onlyHttps: onlyHttps,
           countries: countries,
+          regions: regions,
+          isps: isps,
         );
 
         proxies.addAll(sourceProxies);
@@ -59,10 +74,18 @@ class ProxyRemoteDataSourceImpl implements ProxyRemoteDataSource {
   }
 
   /// Fetches proxies from a specific source
+  ///
+  /// [url] is the URL of the proxy source
+  /// [onlyHttps] filters to only return HTTPS proxies
+  /// [countries] filters to only return proxies from specific countries
+  /// [regions] filters to only return proxies from specific regions
+  /// [isps] filters to only return proxies from specific ISPs
   Future<List<ProxyModel>> _fetchFromSource(
     String url, {
     bool onlyHttps = false,
     List<String>? countries,
+    List<String>? regions,
+    List<String>? isps,
   }) async {
     try {
       final response = await client.get(

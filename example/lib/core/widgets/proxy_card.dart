@@ -37,7 +37,9 @@ class ProxyCard extends StatelessWidget {
             const SizedBox(height: DesignTokens.spacingSmall),
             const Divider(),
             const SizedBox(height: DesignTokens.spacingSmall),
-            Row(
+            Wrap(
+              spacing: DesignTokens.spacingLarge,
+              runSpacing: DesignTokens.spacingMedium,
               children: [
                 _buildInfoItem(
                   context,
@@ -45,13 +47,56 @@ class ProxyCard extends StatelessWidget {
                   proxy.countryCode ?? 'Unknown',
                   Ionicons.earth_outline,
                 ),
-                const SizedBox(width: DesignTokens.spacingLarge),
                 _buildInfoItem(
                   context,
                   'Anonymity',
                   proxy.anonymityLevel ?? 'Unknown',
                   Ionicons.shield_outline,
                 ),
+                if (proxy.region != null)
+                  _buildInfoItem(
+                    context,
+                    'Region',
+                    proxy.region!,
+                    Ionicons.location_outline,
+                  ),
+                if (proxy.isp != null)
+                  _buildInfoItem(
+                    context,
+                    'ISP',
+                    proxy.isp!,
+                    Ionicons.business_outline,
+                  ),
+                if (proxy.speed != null)
+                  _buildInfoItem(
+                    context,
+                    'Speed',
+                    '${proxy.speed!.toStringAsFixed(1)} Mbps',
+                    Ionicons.speedometer_outline,
+                  ),
+                if (proxy.supportsWebsockets == true)
+                  _buildInfoItem(
+                    context,
+                    'Websockets',
+                    'Yes',
+                    Ionicons.code_outline,
+                  ),
+                if (proxy.supportsSocks == true)
+                  _buildInfoItem(
+                    context,
+                    'SOCKS',
+                    proxy.socksVersion != null
+                        ? 'v${proxy.socksVersion}'
+                        : 'Yes',
+                    Ionicons.git_network_outline,
+                  ),
+                if (proxy.isAuthenticated)
+                  _buildInfoItem(
+                    context,
+                    'Auth',
+                    'Required',
+                    Ionicons.key_outline,
+                  ),
               ],
             ),
             if (proxy.responseTime != null) ...[

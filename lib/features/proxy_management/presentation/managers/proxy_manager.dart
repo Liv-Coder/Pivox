@@ -1,11 +1,14 @@
 import 'dart:math';
 
+import '../../../../core/errors/exceptions.dart';
+import '../../data/models/proxy_model.dart';
 import '../../domain/entities/proxy.dart';
+import '../../domain/entities/proxy_analytics.dart';
+import '../../domain/repositories/proxy_repository.dart';
+import '../../domain/services/proxy_analytics_service.dart';
 import '../../domain/usecases/get_proxies.dart';
 import '../../domain/usecases/get_validated_proxies.dart';
 import '../../domain/usecases/validate_proxy.dart';
-import '../../../../core/errors/exceptions.dart';
-import '../../data/models/proxy_model.dart';
 
 /// Manager for proxy operations
 class ProxyManager {
@@ -30,52 +33,88 @@ class ProxyManager {
   /// Random number generator for random proxy selection
   final Random _random = Random();
 
+  /// Analytics service for tracking proxy usage
+  final ProxyAnalyticsService? analyticsService;
+
   /// Creates a new [ProxyManager] with the given use cases
   ProxyManager({
     required this.getProxies,
     required this.validateProxy,
     required this.getValidatedProxies,
+    this.analyticsService,
   });
 
-  /// Fetches proxies from various sources
+  /// Fetches proxies from various sources with advanced filtering options
+  ///
+  /// [options] contains all the filtering options
+  Future<List<Proxy>> fetchProxies({
+    ProxyFilterOptions options = const ProxyFilterOptions(),
+  }) async {
+    _proxies = await getProxies(options: options);
+    return _proxies;
+  }
+
+  /// Fetches proxies from various sources with legacy parameters
+  ///
+  /// This is kept for backward compatibility
   ///
   /// [count] is the number of proxies to fetch
   /// [onlyHttps] filters to only return HTTPS proxies
   /// [countries] filters to only return proxies from specific countries
-  Future<List<Proxy>> fetchProxies({
+  @Deprecated('Use fetchProxies with ProxyFilterOptions instead')
+  Future<List<Proxy>> fetchProxiesLegacy({
     int count = 20,
     bool onlyHttps = false,
     List<String>? countries,
   }) async {
-    _proxies = await getProxies(
-      count: count,
-      onlyHttps: onlyHttps,
-      countries: countries,
+    return fetchProxies(
+      options: ProxyFilterOptions(
+        count: count,
+        onlyHttps: onlyHttps,
+        countries: countries,
+      ),
     );
-
-    return _proxies;
   }
 
-  /// Gets a list of validated proxies
+  /// Gets a list of validated proxies with advanced filtering options
+  ///
+  /// [options] contains all the filtering options
+  /// [onProgress] is a callback for progress updates during validation
+  Future<List<Proxy>> fetchValidatedProxies({
+    ProxyFilterOptions options = const ProxyFilterOptions(count: 10),
+    void Function(int completed, int total)? onProgress,
+  }) async {
+    _validatedProxies = await getValidatedProxies(
+      options: options,
+      onProgress: onProgress,
+    );
+
+    return _validatedProxies;
+  }
+
+  /// Gets a list of validated proxies with legacy parameters
+  ///
+  /// This is kept for backward compatibility
   ///
   /// [count] is the number of proxies to return
   /// [onlyHttps] filters to only return HTTPS proxies
   /// [countries] filters to only return proxies from specific countries
   /// [onProgress] is a callback for progress updates during validation
-  Future<List<Proxy>> fetchValidatedProxies({
+  @Deprecated('Use fetchValidatedProxies with ProxyFilterOptions instead')
+  Future<List<Proxy>> fetchValidatedProxiesLegacy({
     int count = 10,
     bool onlyHttps = false,
     List<String>? countries,
     void Function(int completed, int total)? onProgress,
   }) async {
-    _validatedProxies = await getValidatedProxies(
-      count: count,
-      onlyHttps: onlyHttps,
-      countries: countries,
+    return fetchValidatedProxies(
+      options: ProxyFilterOptions(
+        count: count,
+        onlyHttps: onlyHttps,
+        countries: countries,
+      ),
       onProgress: onProgress,
     );
-
-    return _validatedProxies;
   }
 
   /// Gets the next proxy in the rotation
@@ -235,4 +274,24 @@ class ProxyManager {
 
   /// Gets the current list of validated proxies
   List<Proxy> get validatedProxies => List.unmodifiable(_validatedProxies);
+
+  /// Gets the current analytics data
+  ///
+  /// Returns null if analytics is not enabled
+  Future<ProxyAnalytics?> getAnalytics() async {
+    if (analyticsService == null) {
+      return null;
+    }
+
+    return analyticsService!.getAnalytics();
+  }
+
+  /// Resets the analytics data
+  ///
+  /// Does nothing if analytics is not enabled
+  Future<void> resetAnalytics() async {
+    if (analyticsService != null) {
+      await analyticsService!.resetAnalytics();
+    }
+  }
 }

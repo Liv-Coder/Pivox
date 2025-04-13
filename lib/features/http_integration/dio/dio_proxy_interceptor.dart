@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 
 import '../../../features/proxy_management/domain/entities/proxy.dart';
@@ -66,9 +67,19 @@ class ProxyInterceptor extends Interceptor {
 
     // Set up the proxy
     final proxy = _currentProxy!;
-    options.headers['proxy'] = '${proxy.ip}:${proxy.port}';
+
     // Set proxy for Dio
-    options.extra['proxy'] = '${proxy.ip}:${proxy.port}';
+    final proxyUrl = '${proxy.ip}:${proxy.port}';
+    options.headers['proxy'] = proxyUrl;
+    options.extra['proxy'] = proxyUrl;
+
+    // Add authentication if needed
+    if (proxy.isAuthenticated) {
+      final auth =
+          'Basic ${base64Encode(utf8.encode('${proxy.username}:${proxy.password}'))}';
+      options.headers['Proxy-Authorization'] = auth;
+      options.extra['proxyAuth'] = auth;
+    }
 
     // Reset retry count for new requests
     _retryCount = 0;
