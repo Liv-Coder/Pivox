@@ -1,7 +1,9 @@
 name: pivox
-description: "A new Flutter package project."
+description: "A lightweight yet powerful Dart/Flutter package that provides seamless integration with free proxy servers, with dynamic proxy sourcing, smart rotation, and validation."
 version: 0.0.1
-homepage:
+homepage: "https://github.com/Liv-Coder/Pivox-"
+repository: "https://github.com/Liv-Coder/Pivox-"
+issue_tracker: "https://github.com/Liv-Coder/Pivox-/issues"
 
 environment:
   sdk: ^3.7.2
@@ -10,6 +12,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  http: ^1.1.0
 
 dev_dependencies:
   flutter_test:
