@@ -16,6 +16,7 @@ dependencies:
   shared_preferences: ^2.2.0
   google_fonts: ^6.1.0
   ionicons: ^0.2.2
+  get_it: ^7.6.4
 
 dev_dependencies:
   flutter_test:

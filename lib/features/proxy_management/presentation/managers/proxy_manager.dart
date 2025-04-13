@@ -1,7 +1,6 @@
 import 'dart:math';
 
 import '../../domain/entities/proxy.dart';
-import '../../domain/entities/proxy_score.dart';
 import '../../domain/usecases/get_proxies.dart';
 import '../../domain/usecases/get_validated_proxies.dart';
 import '../../domain/usecases/validate_proxy.dart';

@@ -4,6 +4,7 @@ library;
 export 'core/constants/app_constants.dart';
 export 'core/errors/exceptions.dart';
 export 'core/utils/parallel_processor.dart';
+export 'core/builders/pivox_builder.dart';
 
 // Domain exports
 export 'features/proxy_management/domain/entities/proxy.dart';

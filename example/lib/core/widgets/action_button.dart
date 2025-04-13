@@ -5,16 +5,16 @@ import '../design/design_tokens.dart';
 class ActionButton extends StatelessWidget {
   /// The text to display on the button
   final String text;
-  
+
   /// The icon to display on the button
   final IconData icon;
-  
+
   /// The callback when the button is pressed
   final VoidCallback? onPressed;
-  
+
   /// Whether the button is loading
   final bool isLoading;
-  
+
   /// Creates a new [ActionButton] with the given parameters
   const ActionButton({
     super.key,
@@ -38,6 +38,7 @@ class ActionButton extends StatelessWidget {
         ),
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min, // Use minimum space needed
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           if (isLoading)
@@ -52,7 +53,14 @@ class ActionButton extends StatelessWidget {
           else
             Icon(icon, size: 20),
           const SizedBox(width: DesignTokens.spacingSmall),
-          Text(text),
+          Flexible(
+            // Make text flexible to handle overflow
+            child: Text(
+              text,
+              overflow: TextOverflow.ellipsis, // Add ellipsis for overflow
+              textAlign: TextAlign.center,
+            ),
+          ),
         ],
       ),
     );

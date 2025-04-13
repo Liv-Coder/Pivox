@@ -47,51 +47,53 @@ flutter pub add pivox
 
 ## Usage
 
-### Basic Usage
+### Quick Start
+
+Pivox now offers a simplified initialization process with sensible defaults:
+
+```dart
+import 'package:pivox/pivox.dart';
+
+// One-line initialization with default settings
+final httpClient = await Pivox.createHttpClient();
+
+// Make a request using the proxy
+final response = await httpClient.get(
+  Uri.parse('https://api.ipify.org?format=json'),
+);
+
+print('Response: ${response.body}');
+```
+
+### Customized Setup
+
+For more control, use the builder pattern:
 
 ```dart
 import 'package:pivox/pivox.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-// Initialize dependencies
+// Get dependencies if you want to reuse existing instances
 final sharedPreferences = await SharedPreferences.getInstance();
-final localDataSource = ProxyLocalDataSourceImpl(
-  sharedPreferences: sharedPreferences,
-);
-final remoteDataSource = ProxyRemoteDataSourceImpl(
-  client: http.Client(),
-);
+final httpClient = http.Client();
 
-// Initialize repository with parallel processing support
-final repository = ProxyRepositoryImpl(
-  remoteDataSource: remoteDataSource,
-  localDataSource: localDataSource,
-  client: http.Client(),
-  maxConcurrentValidations: 10, // Validate 10 proxies in parallel
-);
+// Use the builder pattern for customized setup
+final proxyManager = await Pivox.builder()
+  .withHttpClient(httpClient)
+  .withSharedPreferences(sharedPreferences)
+  .withMaxConcurrentValidations(20) // Increase parallel validations
+  .buildProxyManager();
 
-// Initialize use cases
-final getProxies = GetProxies(repository);
-final validateProxy = ValidateProxy(repository);
-final getValidatedProxies = GetValidatedProxies(repository);
-
-// Initialize proxy manager
-final proxyManager = ProxyManager(
-  getProxies: getProxies,
-  validateProxy: validateProxy,
-  getValidatedProxies: getValidatedProxies,
-);
-
-// Create an HTTP client with proxy support
-final httpClient = ProxyHttpClient(
+// Create an HTTP client with the configured proxy manager
+final proxyHttpClient = ProxyHttpClient(
   proxyManager: proxyManager,
   useValidatedProxies: true,
   rotateProxies: true,
 );
 
 // Make a request using the proxy
-final response = await httpClient.get(
+final response = await proxyHttpClient.get(
   Uri.parse('https://api.ipify.org?format=json'),
 );
 
@@ -164,20 +166,21 @@ Here's a more detailed example of using Pivox with Dio:
 import 'package:pivox/pivox.dart';
 import 'package:dio/dio.dart';
 
-// Assuming you've already set up the ProxyManager
+// Quick setup with one line
+final proxyInterceptor = await Pivox.createDioInterceptor();
 
 // Create a Dio instance with proxy support
 final dio = Dio()
   ..options.connectTimeout = const Duration(seconds: 30) // Longer timeout for proxies
   ..options.receiveTimeout = const Duration(seconds: 30)
-  ..interceptors.add(
-    ProxyInterceptor(
-      proxyManager: proxyManager,
-      useValidatedProxies: true, // Only use validated proxies
-      rotateProxies: true, // Rotate proxies on each request
-      maxRetries: 3, // Retry failed requests with different proxies
-    ),
-  );
+  ..interceptors.add(proxyInterceptor);
+
+// For more customization:
+// final customInterceptor = await Pivox.builder()
+//   .withMaxRetries(5)
+//   .withUseValidatedProxies(true)
+//   .withRotateProxies(true)
+//   .buildDioInterceptor();
 
 // Example 1: Basic GET request
 try {
@@ -230,6 +233,11 @@ dio.close();
 #### Parallel Proxy Validation with Progress Tracking
 
 ```dart
+import 'package:pivox/pivox.dart';
+
+// Get a proxy manager with default settings
+final proxyManager = await Pivox.createProxyManager();
+
 // Fetch and validate proxies with progress tracking
 final validatedProxies = await proxyManager.fetchValidatedProxies(
   count: 10,
@@ -244,6 +252,13 @@ final validatedProxies = await proxyManager.fetchValidatedProxies(
 #### Intelligent Proxy Selection with Scoring
 
 ```dart
+import 'package:pivox/pivox.dart';
+
+// Get a proxy manager with customized settings
+final proxyManager = await Pivox.builder()
+  .withMaxConcurrentValidations(15)
+  .buildProxyManager();
+
 // Get a proxy based on its performance score
 final proxy = proxyManager.getNextProxy(
   validated: true,
