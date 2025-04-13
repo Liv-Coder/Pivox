@@ -1,4 +1,5 @@
 import '../entities/proxy.dart';
+import '../entities/proxy_filter_options.dart';
 import '../repositories/proxy_repository.dart';
 
 /// Use case for getting proxies

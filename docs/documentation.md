@@ -33,11 +33,23 @@ Pivox is built around several core concepts:
 
 ### Proxy
 
-A `Proxy` represents a proxy server with its IP address, port, and additional metadata like country code, HTTPS support, and anonymity level.
+A `Proxy` represents a proxy server with its IP address, port, and additional metadata like country code, HTTPS support, anonymity level, region, ISP, speed, protocol support, and authentication credentials.
 
 ### ProxyScore
 
-A `ProxyScore` represents the performance metrics of a proxy, including success rate, average response time, and usage statistics. This is used for intelligent proxy selection.
+A `ProxyScore` represents the performance metrics of a proxy, including success rate, response time, uptime, stability, age, geographical distance, and consecutive success/failure counts. This is used for intelligent proxy selection.
+
+### ProxyFilterOptions
+
+A `ProxyFilterOptions` provides advanced filtering capabilities for proxies based on various criteria like country, region, ISP, speed, protocol support, and more.
+
+### ProxySourceConfig
+
+A `ProxySourceConfig` allows you to configure which proxy sources to use and add custom sources.
+
+### ProxyAnalytics
+
+A `ProxyAnalytics` tracks and reports proxy usage statistics, including success rates, response times, and usage patterns.
 
 ### ProxyManager
 
@@ -82,6 +94,14 @@ final sharedPreferences = await SharedPreferences.getInstance();
 final proxyManager = await Pivox.builder()
   .withSharedPreferences(sharedPreferences)
   .withMaxConcurrentValidations(20) // Increase parallel validations
+  .withAnalytics(true) // Enable analytics tracking
+  .withProxySourceConfig(ProxySourceConfig.only(
+    freeProxyList: true,
+    geoNode: true,
+    proxyScrape: false,
+    proxyNova: false,
+    custom: ['https://my-custom-proxy-source.com'],
+  )) // Configure proxy sources
   .buildProxyManager();
 
 // Create an HTTP client with the configured proxy manager
@@ -122,6 +142,31 @@ print('Response: ${response.data}');
 
 ## Advanced Usage
 
+### Advanced Proxy Filtering
+
+Pivox provides powerful filtering options for proxies:
+
+```dart
+// Get a proxy manager with default settings
+final proxyManager = await Pivox.createProxyManager();
+
+// Fetch proxies with advanced filtering
+final proxies = await proxyManager.fetchProxies(
+  options: ProxyFilterOptions(
+    count: 20,
+    onlyHttps: true,
+    countries: ['US', 'CA'],
+    regions: ['California', 'New York'],
+    isps: ['Comcast', 'AT&T'],
+    minSpeed: 10.0, // Minimum 10 Mbps
+    requireWebsockets: true,
+    requireSocks: false,
+    requireAuthentication: false,
+    requireAnonymous: true,
+  ),
+);
+```
+
 ### Parallel Proxy Validation
 
 Pivox supports parallel proxy validation to speed up the validation process:
@@ -130,11 +175,15 @@ Pivox supports parallel proxy validation to speed up the validation process:
 // Get a proxy manager with default settings
 final proxyManager = await Pivox.createProxyManager();
 
-// Fetch and validate proxies with progress tracking
+// Fetch and validate proxies with progress tracking and advanced filtering
 final validatedProxies = await proxyManager.fetchValidatedProxies(
-  count: 10,
-  onlyHttps: true,
-  countries: ['US', 'CA'],
+  options: ProxyFilterOptions(
+    count: 10,
+    onlyHttps: true,
+    countries: ['US', 'CA'],
+    requireWebsockets: true,
+    requireAnonymous: true,
+  ),
   onProgress: (completed, total) {
     print('Validated $completed of $total proxies');
   },
@@ -149,6 +198,7 @@ Pivox includes a sophisticated proxy scoring system that tracks proxy performanc
 // Get a proxy manager with customized settings
 final proxyManager = await Pivox.builder()
   .withMaxConcurrentValidations(15)
+  .withAnalytics(true)
   .buildProxyManager();
 
 // Get a proxy based on its score
@@ -178,6 +228,56 @@ final isValid = await proxyManager.validateSpecificProxy(
 );
 ```
 
+### Proxy Analytics
+
+Pivox provides detailed analytics for proxy usage:
+
+```dart
+// Get analytics data
+final analytics = await proxyManager.getAnalytics();
+
+// Print analytics information
+print('Total proxies fetched: ${analytics?.totalProxiesFetched}');
+print('Total proxies validated: ${analytics?.totalProxiesValidated}');
+print('Validation success rate: ${analytics?.totalSuccessfulValidations / analytics?.totalProxiesValidated}');
+print('Average response time: ${analytics?.averageResponseTime} ms');
+print('Average success rate: ${analytics?.averageSuccessRate}');
+
+// Get proxies by country
+analytics?.proxiesByCountry.forEach((country, count) {
+  print('$country: $count proxies');
+});
+
+// Reset analytics if needed
+await proxyManager.resetAnalytics();
+```
+
+### Proxy Source Configuration
+
+Pivox allows you to configure which proxy sources to use:
+
+```dart
+// Use all sources (default)
+final allSourcesConfig = ProxySourceConfig.all();
+
+// Use no sources (add your own custom sources)
+final noSourcesConfig = ProxySourceConfig.none();
+
+// Use only specific sources
+final customConfig = ProxySourceConfig.only(
+  freeProxyList: true,
+  geoNode: true,
+  proxyScrape: false,
+  proxyNova: false,
+  custom: ['https://my-custom-proxy-source.com'],
+);
+
+// Use the configuration
+final proxyManager = await Pivox.builder()
+  .withProxySourceConfig(customConfig)
+  .buildProxyManager();
+```
+
 ## API Reference
 
 ### Pivox (Factory Methods)
@@ -186,13 +286,13 @@ final isValid = await proxyManager.validateSpecificProxy(
 class Pivox {
   /// Creates a new PivoxBuilder instance
   static PivoxBuilder builder();
-  
+
   /// Creates a ProxyManager with default settings
   static Future<ProxyManager> createProxyManager();
-  
+
   /// Creates an HTTP client with proxy support using default settings
   static Future<ProxyHttpClient> createHttpClient();
-  
+
   /// Creates a Dio interceptor for proxy support using default settings
   static Future<ProxyInterceptor> createDioInterceptor();
 }
@@ -204,28 +304,34 @@ class Pivox {
 class PivoxBuilder {
   /// Sets the HTTP client to use
   PivoxBuilder withHttpClient(http.Client httpClient);
-  
+
   /// Sets the SharedPreferences instance to use
   PivoxBuilder withSharedPreferences(SharedPreferences sharedPreferences);
-  
+
   /// Sets the maximum number of concurrent validations
   PivoxBuilder withMaxConcurrentValidations(int maxConcurrentValidations);
-  
+
   /// Sets whether to use validated proxies by default
   PivoxBuilder withUseValidatedProxies(bool useValidatedProxies);
-  
+
   /// Sets whether to rotate proxies by default
   PivoxBuilder withRotateProxies(bool rotateProxies);
-  
+
   /// Sets the maximum number of retries for Dio requests
   PivoxBuilder withMaxRetries(int maxRetries);
-  
+
+  /// Sets the proxy source configuration
+  PivoxBuilder withProxySourceConfig(ProxySourceConfig sourceConfig);
+
+  /// Enables or disables analytics tracking
+  PivoxBuilder withAnalytics(bool enableAnalytics);
+
   /// Builds a ProxyManager instance
   Future<ProxyManager> buildProxyManager();
-  
+
   /// Builds an HTTP client with proxy support
   Future<ProxyHttpClient> buildHttpClient();
-  
+
   /// Creates a Dio interceptor for proxy support
   Future<ProxyInterceptor> buildDioInterceptor();
 }
@@ -240,14 +346,33 @@ class Proxy {
   final String? countryCode;
   final bool isHttps;
   final String? anonymityLevel;
-  
+  final String? region;
+  final String? isp;
+  final double? speed;
+  final bool? supportsWebsockets;
+  final bool? supportsSocks;
+  final int? socksVersion;
+  final String? username;
+  final String? password;
+
   const Proxy({
     required this.ip,
     required this.port,
     this.countryCode,
     this.isHttps = false,
     this.anonymityLevel,
+    this.region,
+    this.isp,
+    this.speed,
+    this.supportsWebsockets,
+    this.supportsSocks,
+    this.socksVersion,
+    this.username,
+    this.password,
   });
+
+  /// Returns true if this proxy requires authentication
+  bool get isAuthenticated => username != null && password != null;
 }
 ```
 
@@ -258,18 +383,26 @@ class ProxyModel extends Proxy {
   final int? lastChecked;
   final int? responseTime;
   final ProxyScore? score;
-  
+
   const ProxyModel({
     required super.ip,
     required super.port,
     super.countryCode,
     super.isHttps,
     super.anonymityLevel,
+    super.region,
+    super.isp,
+    super.speed,
+    super.supportsWebsockets,
+    super.supportsSocks,
+    super.socksVersion,
+    super.username,
+    super.password,
     this.lastChecked,
     this.responseTime,
     this.score,
   });
-  
+
   // Factory methods and utility functions
   factory ProxyModel.fromJson(Map<String, dynamic> json);
   Map<String, dynamic> toJson();
@@ -288,21 +421,147 @@ class ProxyScore {
   final int successfulRequests;
   final int failedRequests;
   final int lastUsed;
-  
+  final double uptime;
+  final double stability;
+  final int ageHours;
+  final double geoDistanceScore;
+  final int consecutiveSuccesses;
+  final int consecutiveFailures;
+
   const ProxyScore({
     required this.successRate,
     required this.averageResponseTime,
     required this.successfulRequests,
     required this.failedRequests,
     required this.lastUsed,
+    this.uptime = 1.0,
+    this.stability = 1.0,
+    this.ageHours = 0,
+    this.geoDistanceScore = 0.5,
+    this.consecutiveSuccesses = 0,
+    this.consecutiveFailures = 0,
   });
-  
+
   // Factory methods and utility functions
   factory ProxyScore.initial();
   ProxyScore recordSuccess(int responseTime);
   ProxyScore recordFailure();
   double calculateScore();
   factory ProxyScore.fromJson(Map<String, dynamic> json);
+  Map<String, dynamic> toJson();
+}
+```
+
+### ProxyFilterOptions
+
+```dart
+class ProxyFilterOptions {
+  final int count;
+  final bool onlyHttps;
+  final List<String>? countries;
+  final List<String>? regions;
+  final List<String>? isps;
+  final double? minSpeed;
+  final bool? requireWebsockets;
+  final bool? requireSocks;
+  final int? socksVersion;
+  final bool? requireAuthentication;
+  final bool? requireAnonymous;
+
+  const ProxyFilterOptions({
+    this.count = 20,
+    this.onlyHttps = false,
+    this.countries,
+    this.regions,
+    this.isps,
+    this.minSpeed,
+    this.requireWebsockets,
+    this.requireSocks,
+    this.socksVersion,
+    this.requireAuthentication,
+    this.requireAnonymous,
+  });
+}
+```
+
+### ProxySourceConfig
+
+```dart
+class ProxySourceConfig {
+  final bool useFreeProxyList;
+  final bool useGeoNode;
+  final bool useProxyScrape;
+  final bool useProxyNova;
+  final List<String> customSources;
+
+  const ProxySourceConfig({
+    this.useFreeProxyList = true,
+    this.useGeoNode = true,
+    this.useProxyScrape = true,
+    this.useProxyNova = true,
+    this.customSources = const [],
+  });
+
+  // Factory methods
+  factory ProxySourceConfig.all();
+  factory ProxySourceConfig.none();
+  factory ProxySourceConfig.only({
+    bool freeProxyList = false,
+    bool geoNode = false,
+    bool proxyScrape = false,
+    bool proxyNova = false,
+    List<String> custom = const [],
+  });
+
+  // Methods
+  List<String> getEnabledSourceUrls();
+  ProxySourceConfig copyWith({
+    bool? useFreeProxyList,
+    bool? useGeoNode,
+    bool? useProxyScrape,
+    bool? useProxyNova,
+    List<String>? customSources,
+  });
+}
+```
+
+### ProxyAnalytics
+
+```dart
+class ProxyAnalytics {
+  final int totalProxiesFetched;
+  final int totalProxiesValidated;
+  final int totalSuccessfulValidations;
+  final int totalFailedValidations;
+  final int totalRequests;
+  final int totalSuccessfulRequests;
+  final int totalFailedRequests;
+  final int averageResponseTime;
+  final double averageSuccessRate;
+  final Map<String, int> proxiesByCountry;
+  final Map<String, int> proxiesByAnonymityLevel;
+  final Map<String, int> requestsByProxySource;
+
+  const ProxyAnalytics({
+    this.totalProxiesFetched = 0,
+    this.totalProxiesValidated = 0,
+    this.totalSuccessfulValidations = 0,
+    this.totalFailedValidations = 0,
+    this.totalRequests = 0,
+    this.totalSuccessfulRequests = 0,
+    this.totalFailedRequests = 0,
+    this.averageResponseTime = 0,
+    this.averageSuccessRate = 0.0,
+    this.proxiesByCountry = const {},
+    this.proxiesByAnonymityLevel = const {},
+    this.requestsByProxySource = const {},
+  });
+
+  // Methods
+  ProxyAnalytics recordProxyFetch(List<Proxy> proxies);
+  ProxyAnalytics recordProxyValidation(List<Proxy> proxies, List<bool> results);
+  ProxyAnalytics recordRequest(Proxy proxy, bool success, int? responseTime, String source);
+  factory ProxyAnalytics.fromJson(Map<String, dynamic> json);
   Map<String, dynamic> toJson();
 }
 ```
@@ -314,44 +573,61 @@ class ProxyManager {
   final GetProxies getProxies;
   final ValidateProxy validateProxy;
   final GetValidatedProxies getValidatedProxies;
-  
+  final ProxyAnalyticsService? analyticsService;
+
   ProxyManager({
     required this.getProxies,
     required this.validateProxy,
     required this.getValidatedProxies,
+    this.analyticsService,
   });
-  
+
   // Methods
   Future<List<Proxy>> fetchProxies({
+    ProxyFilterOptions options = const ProxyFilterOptions(),
+  });
+
+  @Deprecated('Use fetchProxies with ProxyFilterOptions instead')
+  Future<List<Proxy>> fetchProxiesLegacy({
     int count = 20,
     bool onlyHttps = false,
     List<String>? countries,
   });
-  
+
   Future<List<Proxy>> fetchValidatedProxies({
+    ProxyFilterOptions options = const ProxyFilterOptions(count: 10),
+    void Function(int completed, int total)? onProgress,
+  });
+
+  @Deprecated('Use fetchValidatedProxies with ProxyFilterOptions instead')
+  Future<List<Proxy>> fetchValidatedProxiesLegacy({
     int count = 10,
     bool onlyHttps = false,
     List<String>? countries,
     void Function(int completed, int total)? onProgress,
   });
-  
+
   Proxy getNextProxy({
     bool validated = true,
     bool useScoring = false,
   });
-  
+
   Proxy getRandomProxy({
     bool validated = true,
     bool useScoring = false,
   });
-  
+
   Future<bool> validateSpecificProxy(
     Proxy proxy, {
     String? testUrl,
     int timeout = 10000,
     bool updateScore = true,
   });
-  
+
+  Future<ProxyAnalytics?> getAnalytics();
+
+  Future<void> resetAnalytics();
+
   // Properties
   List<Proxy> get proxies;
   List<Proxy> get validatedProxies;
@@ -368,17 +644,17 @@ class ProxyHttpClient extends http.BaseClient {
     bool useValidatedProxies = true,
     bool rotateProxies = true,
   });
-  
+
   // Methods
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request);
-  
+
   @override
   void close();
-  
+
   // Properties
   Proxy? currentProxy;
-  
+
   // Methods
   void setProxy(Proxy? proxy);
 }
@@ -394,17 +670,17 @@ class ProxyInterceptor extends Interceptor {
     bool rotateProxies = true,
     int maxRetries = 3,
   });
-  
+
   // Methods
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler);
-  
+
   @override
   void onError(DioException err, ErrorInterceptorHandler handler);
-  
+
   // Properties
   Proxy? currentProxy;
-  
+
   // Methods
   void setProxy(Proxy? proxy);
 }
@@ -420,7 +696,7 @@ import 'package:pivox/pivox.dart';
 Future<void> main() async {
   // Create an HTTP client with proxy support using one line
   final httpClient = await Pivox.createHttpClient();
-  
+
   // Scrape a website
   final response = await httpClient.get(
     Uri.parse('https://example.com'),
@@ -428,7 +704,7 @@ Future<void> main() async {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
     },
   );
-  
+
   // Process the response
   if (response.statusCode == 200) {
     print('Successfully scraped the website');
@@ -436,7 +712,7 @@ Future<void> main() async {
   } else {
     print('Failed to scrape the website: ${response.statusCode}');
   }
-  
+
   // Don't forget to close the client
   httpClient.close();
 }
@@ -451,12 +727,12 @@ import 'package:dio/dio.dart';
 Future<void> main() async {
   // Create a Dio instance with proxy support using one line
   final proxyInterceptor = await Pivox.createDioInterceptor();
-  
+
   final dio = Dio()
     ..options.connectTimeout = const Duration(seconds: 30)
     ..options.receiveTimeout = const Duration(seconds: 30)
     ..interceptors.add(proxyInterceptor);
-  
+
   // Test an API
   try {
     final response = await dio.get(
@@ -467,12 +743,12 @@ Future<void> main() async {
         },
       ),
     );
-    
+
     print('API response: ${response.data}');
   } on DioException catch (e) {
     print('API request failed: ${e.message}');
   }
-  
+
   // Don't forget to close Dio
   dio.close();
 }
@@ -485,14 +761,16 @@ Future<void> main() async {
 If you encounter a `NoValidProxiesException`, it means that no valid proxies were found. Try the following:
 
 1. Increase the number of proxies to fetch:
+
    ```dart
    final proxyManager = await Pivox.builder()
      .buildProxyManager();
-   
+
    await proxyManager.fetchProxies(count: 50);
    ```
 
 2. Relax the filtering criteria:
+
    ```dart
    await proxyManager.fetchProxies(onlyHttps: false);
    ```
@@ -504,6 +782,7 @@ If you encounter a `NoValidProxiesException`, it means that no valid proxies wer
 If proxy validation is taking too long, try:
 
 1. Increase the number of concurrent validations:
+
    ```dart
    final proxyManager = await Pivox.builder()
      .withMaxConcurrentValidations(20)
@@ -511,6 +790,7 @@ If proxy validation is taking too long, try:
    ```
 
 2. Reduce the validation timeout:
+
    ```dart
    await proxyManager.validateSpecificProxy(
      proxy,
@@ -524,6 +804,7 @@ If you're experiencing connection failures with proxies:
 
 1. Make sure the proxies support the protocol you're using (HTTP/HTTPS).
 2. Try using validated proxies only:
+
    ```dart
    final httpClient = await Pivox.builder()
      .withUseValidatedProxies(true)
@@ -531,6 +812,7 @@ If you're experiencing connection failures with proxies:
    ```
 
 3. Implement retry logic with Dio:
+
    ```dart
    final proxyInterceptor = await Pivox.builder()
      .withMaxRetries(5)

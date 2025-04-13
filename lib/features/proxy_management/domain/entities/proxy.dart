@@ -1,3 +1,6 @@
+import 'proxy_auth.dart';
+import 'proxy_protocol.dart';
+
 /// Represents a proxy server
 class Proxy {
   /// IP address of the proxy server
@@ -10,7 +13,11 @@ class Proxy {
   final String? countryCode;
 
   /// Whether the proxy supports HTTPS
+  /// @deprecated Use protocol instead
   final bool isHttps;
+
+  /// Protocol used by the proxy
+  final ProxyProtocol protocol;
 
   /// Anonymity level of the proxy (e.g., 'elite', 'anonymous', 'transparent')
   final String? anonymityLevel;
@@ -28,16 +35,23 @@ class Proxy {
   final bool? supportsWebsockets;
 
   /// Whether the proxy supports SOCKS protocol (optional)
-  final bool? supportsSocks;
+  /// @deprecated Use protocol instead
+  bool? get supportsSocks => protocol.isSocks;
 
   /// SOCKS version if applicable (optional)
-  final int? socksVersion;
+  /// @deprecated Use protocol instead
+  int? get socksVersion => protocol.socksVersion;
+
+  /// Authentication credentials (optional)
+  final ProxyAuth? auth;
 
   /// Username for authenticated proxies (optional)
-  final String? username;
+  /// @deprecated Use auth instead
+  String? get username => auth?.username;
 
   /// Password for authenticated proxies (optional)
-  final String? password;
+  /// @deprecated Use auth instead
+  String? get password => auth?.password;
 
   /// Creates a new [Proxy] instance
   const Proxy({
@@ -45,19 +59,156 @@ class Proxy {
     required this.port,
     this.countryCode,
     this.isHttps = false,
+    this.protocol = ProxyProtocol.http,
     this.anonymityLevel,
     this.region,
     this.isp,
     this.speed,
     this.supportsWebsockets,
-    this.supportsSocks,
-    this.socksVersion,
-    this.username,
-    this.password,
-  });
+    this.auth,
+    String? username,
+    String? password,
+  }) : assert(
+         (username == null && password == null) || auth == null,
+         'Cannot provide both username/password and auth',
+       );
+
+  /// Creates a new [Proxy] with HTTP protocol
+  factory Proxy.http({
+    required String ip,
+    required int port,
+    String? countryCode,
+    String? anonymityLevel,
+    String? region,
+    String? isp,
+    double? speed,
+    bool? supportsWebsockets,
+    ProxyAuth? auth,
+  }) {
+    return Proxy(
+      ip: ip,
+      port: port,
+      countryCode: countryCode,
+      isHttps: false,
+      protocol: ProxyProtocol.http,
+      anonymityLevel: anonymityLevel,
+      region: region,
+      isp: isp,
+      speed: speed,
+      supportsWebsockets: supportsWebsockets,
+      auth: auth,
+    );
+  }
+
+  /// Creates a new [Proxy] with HTTPS protocol
+  factory Proxy.https({
+    required String ip,
+    required int port,
+    String? countryCode,
+    String? anonymityLevel,
+    String? region,
+    String? isp,
+    double? speed,
+    bool? supportsWebsockets,
+    ProxyAuth? auth,
+  }) {
+    return Proxy(
+      ip: ip,
+      port: port,
+      countryCode: countryCode,
+      isHttps: true,
+      protocol: ProxyProtocol.https,
+      anonymityLevel: anonymityLevel,
+      region: region,
+      isp: isp,
+      speed: speed,
+      supportsWebsockets: supportsWebsockets,
+      auth: auth,
+    );
+  }
+
+  /// Creates a new [Proxy] with SOCKS4 protocol
+  factory Proxy.socks4({
+    required String ip,
+    required int port,
+    String? countryCode,
+    String? anonymityLevel,
+    String? region,
+    String? isp,
+    double? speed,
+    bool? supportsWebsockets,
+    ProxyAuth? auth,
+  }) {
+    return Proxy(
+      ip: ip,
+      port: port,
+      countryCode: countryCode,
+      isHttps: false,
+      protocol: ProxyProtocol.socks4,
+      anonymityLevel: anonymityLevel,
+      region: region,
+      isp: isp,
+      speed: speed,
+      supportsWebsockets: supportsWebsockets,
+      auth: auth,
+    );
+  }
+
+  /// Creates a new [Proxy] with SOCKS5 protocol
+  factory Proxy.socks5({
+    required String ip,
+    required int port,
+    String? countryCode,
+    String? anonymityLevel,
+    String? region,
+    String? isp,
+    double? speed,
+    bool? supportsWebsockets,
+    ProxyAuth? auth,
+  }) {
+    return Proxy(
+      ip: ip,
+      port: port,
+      countryCode: countryCode,
+      isHttps: false,
+      protocol: ProxyProtocol.socks5,
+      anonymityLevel: anonymityLevel,
+      region: region,
+      isp: isp,
+      speed: speed,
+      supportsWebsockets: supportsWebsockets,
+      auth: auth,
+    );
+  }
 
   /// Returns true if this proxy requires authentication
-  bool get isAuthenticated => username != null && password != null;
+  bool get isAuthenticated =>
+      auth != null || (username != null && password != null);
+
+  /// Returns the authentication method
+  ProxyAuthMethod get authMethod => auth?.method ?? ProxyAuthMethod.basic;
+
+  /// Creates a new [Proxy] with the given authentication credentials
+  Proxy withAuth(ProxyAuth auth) {
+    return Proxy(
+      ip: ip,
+      port: port,
+      countryCode: countryCode,
+      isHttps: isHttps,
+      protocol: protocol,
+      anonymityLevel: anonymityLevel,
+      region: region,
+      isp: isp,
+      speed: speed,
+      supportsWebsockets: supportsWebsockets,
+      auth: auth,
+    );
+  }
+
+  /// Creates a new [Proxy] with basic authentication
+  Proxy withBasicAuth(String username, String password) {
+    return withAuth(ProxyAuth.basic(username: username, password: password));
+  }
 
   /// Returns the proxy URL in the format 'http(s)://ip:port'
   String get url => '${isHttps ? 'https' : 'http'}://$ip:$port';

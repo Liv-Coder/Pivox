@@ -1,12 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pivox/features/proxy_management/domain/repositories/proxy_repository.dart';
+import 'package:pivox/features/proxy_management/domain/entities/proxy_filter_options.dart';
 
 void main() {
   group('ProxyFilterOptions', () {
     test('default constructor creates instance with default values', () {
       final options = ProxyFilterOptions();
-      
-      expect(options.count, 20);
+
+      expect(options.count, 10);
       expect(options.onlyHttps, false);
       expect(options.countries, null);
       expect(options.regions, null);
@@ -18,7 +18,7 @@ void main() {
       expect(options.requireAuthentication, null);
       expect(options.requireAnonymous, null);
     });
-    
+
     test('constructor with parameters sets values correctly', () {
       final options = ProxyFilterOptions(
         count: 10,
@@ -26,20 +26,20 @@ void main() {
         countries: ['US', 'CA'],
         regions: ['California'],
         isps: ['Comcast'],
-        minSpeed: 10.0,
+        minSpeed: 10,
         requireWebsockets: true,
         requireSocks: true,
         socksVersion: 5,
         requireAuthentication: true,
         requireAnonymous: true,
       );
-      
+
       expect(options.count, 10);
       expect(options.onlyHttps, true);
       expect(options.countries, ['US', 'CA']);
       expect(options.regions, ['California']);
       expect(options.isps, ['Comcast']);
-      expect(options.minSpeed, 10.0);
+      expect(options.minSpeed, 10);
       expect(options.requireWebsockets, true);
       expect(options.requireSocks, true);
       expect(options.socksVersion, 5);

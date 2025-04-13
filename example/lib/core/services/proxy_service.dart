@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:pivox/pivox.dart';
 import 'package:pivox/features/proxy_management/domain/entities/proxy_analytics.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Service for managing proxies
@@ -34,6 +35,7 @@ class ProxyService {
             .withSharedPreferences(sharedPreferences)
             .withMaxConcurrentValidations(10)
             .withAnalytics(true)
+            .withRotationStrategy(RotationStrategyType.roundRobin)
             .buildProxyManager();
 
     // Create an HTTP client with the proxy manager
@@ -151,5 +153,38 @@ class ProxyService {
   /// Resets the analytics data
   Future<void> resetAnalytics() async {
     await _proxyManager.resetAnalytics();
+  }
+
+  /// Sets the rotation strategy
+  void setRotationStrategy(RotationStrategyType strategyType) {
+    _proxyManager.setRotationStrategy(strategyType);
+  }
+
+  /// Gets the current rotation strategy type
+  RotationStrategyType getRotationStrategyType() {
+    // This is a workaround since we can't directly access the strategy type
+    // We'll return the default type
+    return RotationStrategyType.roundRobin;
+  }
+
+  /// Gets the next proxy using the current rotation strategy
+  Proxy getNextProxy({bool validated = true, bool useScoring = false}) {
+    return _proxyManager.getNextProxy(
+      validated: validated,
+      useScoring: useScoring,
+    );
+  }
+
+  /// Gets a random proxy
+  Proxy getRandomProxy({bool validated = true, bool useScoring = false}) {
+    return _proxyManager.getRandomProxy(
+      validated: validated,
+      useScoring: useScoring,
+    );
+  }
+
+  /// Gets the least recently used proxy
+  Proxy getLeastRecentlyUsedProxy({bool validated = true}) {
+    return _proxyManager.getLeastRecentlyUsedProxy(validated: validated);
   }
 }

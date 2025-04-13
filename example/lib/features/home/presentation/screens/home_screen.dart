@@ -11,6 +11,7 @@ import '../../../../core/widgets/proxy_card.dart';
 import '../../../../core/widgets/status_card.dart';
 import '../../../advanced_filtering/presentation/screens/advanced_filtering_screen.dart';
 import '../../../analytics/presentation/screens/analytics_screen.dart';
+import '../../../rotation_strategies/presentation/screens/rotation_strategies_screen.dart';
 
 /// Home screen for the Pivox example app
 class HomeScreen extends StatefulWidget {
@@ -169,6 +170,22 @@ class _HomeScreenState extends State<HomeScreen> {
                                 MaterialPageRoute(
                                   builder:
                                       (context) =>
+                                          const RotationStrategiesScreen(),
+                                ),
+                              );
+                            },
+                            icon: Ionicons.swap_horizontal_outline,
+                            text: 'Rotation Strategies',
+                            isLoading: false,
+                          ),
+                          const SizedBox(height: DesignTokens.spacingMedium),
+                          ActionButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) =>
                                           const AdvancedFilteringScreen(),
                                 ),
                               );
@@ -189,6 +206,22 @@ class _HomeScreenState extends State<HomeScreen> {
                             },
                             icon: Ionicons.analytics_outline,
                             text: 'Proxy Analytics',
+                            isLoading: false,
+                          ),
+                          const SizedBox(height: DesignTokens.spacingMedium),
+                          ActionButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) =>
+                                          const RotationStrategiesScreen(),
+                                ),
+                              );
+                            },
+                            icon: Ionicons.sync_outline,
+                            text: 'Rotation Strategies',
                             isLoading: false,
                           ),
                         ],

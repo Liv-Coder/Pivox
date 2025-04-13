@@ -5,8 +5,12 @@ import '../../../../core/config/proxy_source_config.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/utils/parallel_processor.dart';
 import '../../domain/entities/proxy.dart';
+import '../../domain/entities/proxy_filter_options.dart';
+import '../../domain/entities/proxy_protocol.dart';
+import '../../domain/entities/proxy_validation_options.dart';
 import '../../domain/repositories/proxy_repository.dart';
 import '../../domain/services/proxy_analytics_service.dart';
+import 'socks_proxy_validator.dart';
 import '../datasources/proxy_local_datasource.dart';
 import '../datasources/proxy_remote_datasource.dart';
 import '../models/proxy_model.dart';
@@ -174,45 +178,76 @@ class ProxyRepositoryImpl implements ProxyRepository {
     String? testUrl,
     int timeout = 10000,
   }) async {
-    final url = testUrl ?? 'https://www.google.com';
-    final uri = Uri.parse(url);
+    return validateProxyWithOptions(
+      proxy,
+      options: ProxyValidationOptions(testUrl: testUrl, timeout: timeout),
+    );
+  }
+
+  @override
+  Future<bool> validateProxyWithOptions(
+    Proxy proxy, {
+    ProxyValidationOptions options = const ProxyValidationOptions(),
+  }) async {
+    // Record start time for response time measurement
+    final startTime = DateTime.now().millisecondsSinceEpoch;
+    bool success = false;
+    int? responseTime;
 
     try {
-      final httpClient = HttpClient();
-      httpClient.connectionTimeout = Duration(milliseconds: timeout);
+      // Use the appropriate validator based on the proxy protocol
+      if (proxy.protocol.isSocks) {
+        // Use SOCKS validator for SOCKS proxies
+        success = await SocksProxyValidator.validate(proxy, options: options);
+      } else {
+        // Use HTTP client for HTTP/HTTPS proxies
+        final url = options.testUrl ?? 'https://www.google.com';
+        final uri = Uri.parse(url);
 
-      // Set up the proxy
-      httpClient.findProxy = (uri) {
-        return 'PROXY ${proxy.ip}:${proxy.port}';
-      };
+        final httpClient = HttpClient();
+        httpClient.connectionTimeout = Duration(milliseconds: options.timeout);
 
-      // Set up authentication if needed
-      if (proxy.isAuthenticated) {
-        httpClient.authenticate = (Uri url, String scheme, String? realm) {
-          httpClient.addCredentials(
-            url,
-            realm ?? '',
-            HttpClientBasicCredentials(proxy.username!, proxy.password!),
-          );
-          return Future.value(true);
+        // Set up the proxy
+        httpClient.findProxy = (uri) {
+          return 'PROXY ${proxy.ip}:${proxy.port}';
         };
+
+        // Set up authentication if needed
+        if (proxy.isAuthenticated) {
+          httpClient.authenticate = (Uri url, String scheme, String? realm) {
+            if (proxy.auth != null) {
+              httpClient.addCredentials(
+                url,
+                realm ?? '',
+                HttpClientBasicCredentials(
+                  proxy.auth!.username,
+                  proxy.auth!.password,
+                ),
+              );
+            } else if (proxy.username != null && proxy.password != null) {
+              httpClient.addCredentials(
+                url,
+                realm ?? '',
+                HttpClientBasicCredentials(proxy.username!, proxy.password!),
+              );
+            }
+            return Future.value(true);
+          };
+        }
+
+        final request = await httpClient.getUrl(uri);
+        final response = await request.close();
+
+        // Close the client
+        httpClient.close();
+
+        // Check if the response is successful
+        success = response.statusCode >= 200 && response.statusCode < 300;
       }
-
-      // Record start time for response time measurement
-      final startTime = DateTime.now().millisecondsSinceEpoch;
-
-      final request = await httpClient.getUrl(uri);
-      final response = await request.close();
 
       // Calculate response time
       final endTime = DateTime.now().millisecondsSinceEpoch;
-      final responseTime = endTime - startTime;
-
-      // Close the client
-      httpClient.close();
-
-      // Check if the response is successful
-      final success = response.statusCode >= 200 && response.statusCode < 300;
+      responseTime = endTime - startTime;
 
       // Track analytics
       if (analyticsService != null) {
@@ -224,6 +259,15 @@ class ProxyRepositoryImpl implements ProxyRepository {
         );
       }
 
+      // Update the proxy's score if requested
+      if (options.updateScore && proxy is ProxyModel) {
+        if (success) {
+          proxy.withSuccessfulRequest(responseTime);
+        } else {
+          proxy.withFailedRequest();
+        }
+      }
+
       return success;
     } catch (e) {
       // Track analytics for failed request
@@ -231,8 +275,37 @@ class ProxyRepositoryImpl implements ProxyRepository {
         await analyticsService!.recordRequest(proxy, false, null, 'validation');
       }
 
+      // Update the proxy's score if requested
+      if (options.updateScore && proxy is ProxyModel) {
+        proxy.withFailedRequest();
+      }
+
       return false;
     }
+  }
+
+  @override
+  Future<List<bool>> validateProxies(
+    List<Proxy> proxies, {
+    ProxyValidationOptions options = const ProxyValidationOptions(),
+    void Function(int completed, int total)? onProgress,
+  }) async {
+    if (proxies.isEmpty) {
+      return [];
+    }
+
+    // Initialize the parallel processor if needed
+    await _parallelProcessor.initialize();
+
+    // Validate proxies in parallel
+    final results = await _parallelProcessor.process(
+      items: proxies,
+      processFunction:
+          (proxy) => validateProxyWithOptions(proxy, options: options),
+      onProgress: onProgress,
+    );
+
+    return results;
   }
 
   @override

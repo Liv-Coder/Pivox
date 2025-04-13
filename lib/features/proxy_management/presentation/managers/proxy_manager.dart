@@ -1,11 +1,14 @@
-import 'dart:math';
-
 import '../../../../core/errors/exceptions.dart';
+import '../../data/cache/proxy_cache_manager.dart';
 import '../../data/models/proxy_model.dart';
 import '../../domain/entities/proxy.dart';
 import '../../domain/entities/proxy_analytics.dart';
-import '../../domain/repositories/proxy_repository.dart';
+import '../../domain/entities/proxy_filter_options.dart';
 import '../../domain/services/proxy_analytics_service.dart';
+import '../../domain/services/proxy_preloader_service.dart';
+import '../../domain/strategies/proxy_rotation_strategy.dart'
+    hide RotationStrategyType;
+import '../../domain/strategies/rotation_strategy_factory.dart';
 import '../../domain/usecases/get_proxies.dart';
 import '../../domain/usecases/get_validated_proxies.dart';
 import '../../domain/usecases/validate_proxy.dart';
@@ -27,11 +30,13 @@ class ProxyManager {
   /// List of currently validated proxies
   List<Proxy> _validatedProxies = [];
 
-  /// Current proxy index for rotation
-  int _currentProxyIndex = 0;
+  // No longer needed with rotation strategies
 
-  /// Random number generator for random proxy selection
-  final Random _random = Random();
+  /// Proxy rotation strategy
+  ProxyRotationStrategy _rotationStrategy;
+
+  /// Proxy preloader service
+  final ProxyPreloaderService? _preloaderService;
 
   /// Analytics service for tracking proxy usage
   final ProxyAnalyticsService? analyticsService;
@@ -42,7 +47,17 @@ class ProxyManager {
     required this.validateProxy,
     required this.getValidatedProxies,
     this.analyticsService,
-  });
+    ProxyPreloaderService? preloaderService,
+    ProxyCacheManager? cacheManager,
+    RotationStrategyType strategyType = RotationStrategyType.roundRobin,
+  }) : _preloaderService = preloaderService,
+       _rotationStrategy = RotationStrategyFactory.createStrategy(
+         type: strategyType,
+         proxies: [],
+       ) {
+    // Start the preloader service if provided
+    _preloaderService?.start();
+  }
 
   /// Fetches proxies from various sources with advanced filtering options
   ///
@@ -121,7 +136,12 @@ class ProxyManager {
   ///
   /// [validated] determines whether to use validated proxies
   /// [useScoring] determines whether to use the scoring system for selection
-  Proxy getNextProxy({bool validated = true, bool useScoring = false}) {
+  /// [strategyType] determines the rotation strategy to use
+  Proxy getNextProxy({
+    bool validated = true,
+    bool useScoring = false,
+    RotationStrategyType strategyType = RotationStrategyType.roundRobin,
+  }) {
     final proxies = validated ? _validatedProxies : _proxies;
 
     if (proxies.isEmpty) {
@@ -129,10 +149,30 @@ class ProxyManager {
     }
 
     if (useScoring) {
-      return _getProxyByScore(proxies);
+      // Use weighted selection based on proxy scores
+      final proxyModels = proxies.whereType<ProxyModel>().toList();
+      if (proxyModels.isEmpty) {
+        // Fall back to the specified strategy if no models with scores are available
+        _rotationStrategy = RotationStrategyFactory.createStrategy(
+          type: strategyType,
+          proxies: proxies,
+        );
+        return _rotationStrategy.selectProxy(proxies);
+      }
+
+      // Use weighted strategy for scoring
+      _rotationStrategy = RotationStrategyFactory.createStrategy(
+        type: RotationStrategyType.weighted,
+        proxies: proxyModels,
+      );
+      return _rotationStrategy.selectProxy(proxyModels);
     } else {
-      _currentProxyIndex = (_currentProxyIndex + 1) % proxies.length;
-      return proxies[_currentProxyIndex];
+      // Use the specified strategy
+      _rotationStrategy = RotationStrategyFactory.createStrategy(
+        type: strategyType,
+        proxies: proxies,
+      );
+      return _rotationStrategy.selectProxy(proxies);
     }
   }
 
@@ -148,70 +188,23 @@ class ProxyManager {
     }
 
     if (useScoring) {
-      return _getProxyByScore(proxies, randomize: true);
+      // Use weighted selection based on proxy scores
+      return getNextProxy(
+        validated: validated,
+        useScoring: true,
+        strategyType: RotationStrategyType.weighted,
+      );
     } else {
-      return proxies[_random.nextInt(proxies.length)];
+      // Use simple random selection
+      _rotationStrategy = RotationStrategyFactory.createStrategy(
+        type: RotationStrategyType.random,
+        proxies: proxies,
+      );
+      return _rotationStrategy.selectProxy(proxies);
     }
   }
 
-  /// Gets a proxy based on its score
-  ///
-  /// [proxies] is the list of proxies to choose from
-  /// [randomize] determines whether to add randomness to the selection
-  Proxy _getProxyByScore(List<Proxy> proxies, {bool randomize = false}) {
-    // If there's only one proxy, return it
-    if (proxies.length == 1) {
-      return proxies.first;
-    }
-
-    // Calculate scores for all proxies
-    final scores = <double>[];
-    var totalScore = 0.0;
-
-    for (final proxy in proxies) {
-      double score;
-
-      if (proxy is ProxyModel && proxy.score != null) {
-        score = proxy.score!.calculateScore();
-
-        // Add a small random factor if requested
-        if (randomize) {
-          score = (score * 0.8) + (_random.nextDouble() * 0.2);
-        }
-      } else {
-        // Default score for proxies without a score
-        score = randomize ? _random.nextDouble() * 0.5 : 0.5;
-      }
-
-      scores.add(score);
-      totalScore += score;
-    }
-
-    // If all scores are 0, use random selection
-    if (totalScore <= 0) {
-      return proxies[_random.nextInt(proxies.length)];
-    }
-
-    // Normalize scores to create a probability distribution
-    for (var i = 0; i < scores.length; i++) {
-      scores[i] = scores[i] / totalScore;
-    }
-
-    // Select a proxy based on the probability distribution
-    final randomValue = _random.nextDouble();
-    var cumulativeProbability = 0.0;
-
-    for (var i = 0; i < proxies.length; i++) {
-      cumulativeProbability += scores[i];
-
-      if (randomValue <= cumulativeProbability) {
-        return proxies[i];
-      }
-    }
-
-    // Fallback to the last proxy (should rarely happen)
-    return proxies.last;
-  }
+  // No longer needed with rotation strategies
 
   /// Validates a specific proxy
   ///
@@ -293,5 +286,32 @@ class ProxyManager {
     if (analyticsService != null) {
       await analyticsService!.resetAnalytics();
     }
+  }
+
+  /// Sets the proxy rotation strategy
+  ///
+  /// [strategyType] is the type of rotation strategy to use
+  void setRotationStrategy(RotationStrategyType strategyType) {
+    _rotationStrategy = RotationStrategyFactory.createStrategy(
+      type: strategyType,
+      proxies: _validatedProxies,
+    );
+  }
+
+  /// Gets the least recently used proxy
+  ///
+  /// [validated] determines whether to use validated proxies
+  Proxy getLeastRecentlyUsedProxy({bool validated = true}) {
+    final proxies = validated ? _validatedProxies : _proxies;
+
+    if (proxies.isEmpty) {
+      throw NoValidProxiesException();
+    }
+
+    _rotationStrategy = RotationStrategyFactory.createStrategy(
+      type: RotationStrategyType.geoBased,
+      proxies: proxies,
+    );
+    return _rotationStrategy.selectProxy(proxies);
   }
 }

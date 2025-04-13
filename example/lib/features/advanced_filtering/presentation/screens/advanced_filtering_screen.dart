@@ -15,7 +15,8 @@ class AdvancedFilteringScreen extends StatefulWidget {
   const AdvancedFilteringScreen({super.key});
 
   @override
-  State<AdvancedFilteringScreen> createState() => _AdvancedFilteringScreenState();
+  State<AdvancedFilteringScreen> createState() =>
+      _AdvancedFilteringScreenState();
 }
 
 class _AdvancedFilteringScreenState extends State<AdvancedFilteringScreen> {
@@ -33,6 +34,9 @@ class _AdvancedFilteringScreenState extends State<AdvancedFilteringScreen> {
   final _regionsController = TextEditingController();
   final _ispsController = TextEditingController();
   final _minSpeedController = TextEditingController();
+  final _maxResponseTimeController = TextEditingController();
+  final _minSuccessRateController = TextEditingController();
+  final _protocolController = TextEditingController();
   bool _requireWebsockets = false;
   bool _requireSocks = false;
   final _socksVersionController = TextEditingController();
@@ -46,6 +50,9 @@ class _AdvancedFilteringScreenState extends State<AdvancedFilteringScreen> {
     _regionsController.dispose();
     _ispsController.dispose();
     _minSpeedController.dispose();
+    _maxResponseTimeController.dispose();
+    _minSuccessRateController.dispose();
+    _protocolController.dispose();
     _socksVersionController.dispose();
     super.dispose();
   }
@@ -59,21 +66,44 @@ class _AdvancedFilteringScreenState extends State<AdvancedFilteringScreen> {
     try {
       // Parse filter values
       final count = int.tryParse(_countController.text) ?? 20;
-      final countries = _countriesController.text.isEmpty
-          ? null
-          : _countriesController.text.split(',').map((e) => e.trim()).toList();
-      final regions = _regionsController.text.isEmpty
-          ? null
-          : _regionsController.text.split(',').map((e) => e.trim()).toList();
-      final isps = _ispsController.text.isEmpty
-          ? null
-          : _ispsController.text.split(',').map((e) => e.trim()).toList();
-      final minSpeed = _minSpeedController.text.isEmpty
-          ? null
-          : double.tryParse(_minSpeedController.text);
-      final socksVersion = _socksVersionController.text.isEmpty
-          ? null
-          : int.tryParse(_socksVersionController.text);
+      final countries =
+          _countriesController.text.isEmpty
+              ? null
+              : _countriesController.text
+                  .split(',')
+                  .map((e) => e.trim())
+                  .toList();
+      final regions =
+          _regionsController.text.isEmpty
+              ? null
+              : _regionsController.text
+                  .split(',')
+                  .map((e) => e.trim())
+                  .toList();
+      final isps =
+          _ispsController.text.isEmpty
+              ? null
+              : _ispsController.text.split(',').map((e) => e.trim()).toList();
+      final minSpeed =
+          _minSpeedController.text.isEmpty
+              ? null
+              : int.tryParse(_minSpeedController.text);
+      final maxResponseTime =
+          _maxResponseTimeController.text.isEmpty
+              ? null
+              : int.tryParse(_maxResponseTimeController.text);
+      final minSuccessRate =
+          _minSuccessRateController.text.isEmpty
+              ? null
+              : double.tryParse(_minSuccessRateController.text);
+      final protocol =
+          _protocolController.text.isEmpty
+              ? null
+              : _protocolController.text.trim();
+      final socksVersion =
+          _socksVersionController.text.isEmpty
+              ? null
+              : int.tryParse(_socksVersionController.text);
 
       // Create filter options
       final options = ProxyFilterOptions(
@@ -83,6 +113,9 @@ class _AdvancedFilteringScreenState extends State<AdvancedFilteringScreen> {
         regions: regions,
         isps: isps,
         minSpeed: minSpeed,
+        maxResponseTime: maxResponseTime,
+        minSuccessRate: minSuccessRate,
+        protocol: protocol,
         requireWebsockets: _requireWebsockets,
         requireSocks: _requireSocks,
         socksVersion: socksVersion,
@@ -107,8 +140,7 @@ class _AdvancedFilteringScreenState extends State<AdvancedFilteringScreen> {
               isp: p.isp,
               speed: p.speed,
               supportsWebsockets: p.supportsWebsockets,
-              supportsSocks: p.supportsSocks,
-              socksVersion: p.socksVersion,
+              protocol: p.protocol,
             ),
           ),
         );
@@ -149,8 +181,16 @@ class _AdvancedFilteringScreenState extends State<AdvancedFilteringScreen> {
                     ),
                   ),
                   const SizedBox(height: DesignTokens.spacingMedium),
-                  
+
                   // Basic filters
+                  const Text(
+                    'Basic Filters',
+                    style: TextStyle(
+                      fontSize: DesignTokens.fontSizeMedium,
+                      fontWeight: DesignTokens.fontWeightBold,
+                    ),
+                  ),
+                  const SizedBox(height: DesignTokens.spacingSmall),
                   Row(
                     children: [
                       Expanded(
@@ -179,8 +219,16 @@ class _AdvancedFilteringScreenState extends State<AdvancedFilteringScreen> {
                     ],
                   ),
                   const SizedBox(height: DesignTokens.spacingMedium),
-                  
+
                   // Location filters
+                  const Text(
+                    'Location Filters',
+                    style: TextStyle(
+                      fontSize: DesignTokens.fontSizeMedium,
+                      fontWeight: DesignTokens.fontWeightBold,
+                    ),
+                  ),
+                  const SizedBox(height: DesignTokens.spacingSmall),
                   TextField(
                     controller: _countriesController,
                     decoration: const InputDecoration(
@@ -190,7 +238,7 @@ class _AdvancedFilteringScreenState extends State<AdvancedFilteringScreen> {
                     ),
                   ),
                   const SizedBox(height: DesignTokens.spacingMedium),
-                  
+
                   TextField(
                     controller: _regionsController,
                     decoration: const InputDecoration(
@@ -200,7 +248,7 @@ class _AdvancedFilteringScreenState extends State<AdvancedFilteringScreen> {
                     ),
                   ),
                   const SizedBox(height: DesignTokens.spacingMedium),
-                  
+
                   // Provider filters
                   TextField(
                     controller: _ispsController,
@@ -211,19 +259,72 @@ class _AdvancedFilteringScreenState extends State<AdvancedFilteringScreen> {
                     ),
                   ),
                   const SizedBox(height: DesignTokens.spacingMedium),
-                  
+
                   // Performance filters
-                  TextField(
-                    controller: _minSpeedController,
-                    decoration: const InputDecoration(
-                      labelText: 'Minimum Speed (Mbps)',
-                      border: OutlineInputBorder(),
+                  const Text(
+                    'Performance Filters',
+                    style: TextStyle(
+                      fontSize: DesignTokens.fontSizeMedium,
+                      fontWeight: DesignTokens.fontWeightBold,
                     ),
-                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: DesignTokens.spacingSmall),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _minSpeedController,
+                          decoration: const InputDecoration(
+                            labelText: 'Min Speed (Mbps)',
+                            border: OutlineInputBorder(),
+                          ),
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                      const SizedBox(width: DesignTokens.spacingMedium),
+                      Expanded(
+                        child: TextField(
+                          controller: _maxResponseTimeController,
+                          decoration: const InputDecoration(
+                            labelText: 'Max Response (ms)',
+                            border: OutlineInputBorder(),
+                          ),
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: DesignTokens.spacingMedium),
-                  
+                  TextField(
+                    controller: _minSuccessRateController,
+                    decoration: const InputDecoration(
+                      labelText: 'Minimum Success Rate (0.0-1.0)',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                  ),
+                  const SizedBox(height: DesignTokens.spacingMedium),
+
                   // Protocol filters
+                  const Text(
+                    'Protocol Filters',
+                    style: TextStyle(
+                      fontSize: DesignTokens.fontSizeMedium,
+                      fontWeight: DesignTokens.fontWeightBold,
+                    ),
+                  ),
+                  const SizedBox(height: DesignTokens.spacingSmall),
+                  TextField(
+                    controller: _protocolController,
+                    decoration: const InputDecoration(
+                      labelText: 'Protocol (http, https, socks4, socks5)',
+                      border: OutlineInputBorder(),
+                      hintText: 'https',
+                    ),
+                  ),
+                  const SizedBox(height: DesignTokens.spacingMedium),
                   Row(
                     children: [
                       Expanded(
@@ -254,7 +355,7 @@ class _AdvancedFilteringScreenState extends State<AdvancedFilteringScreen> {
                     ],
                   ),
                   const SizedBox(height: DesignTokens.spacingMedium),
-                  
+
                   TextField(
                     controller: _socksVersionController,
                     decoration: const InputDecoration(
@@ -265,8 +366,16 @@ class _AdvancedFilteringScreenState extends State<AdvancedFilteringScreen> {
                     keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: DesignTokens.spacingMedium),
-                  
+
                   // Authentication and anonymity filters
+                  const Text(
+                    'Authentication & Anonymity',
+                    style: TextStyle(
+                      fontSize: DesignTokens.fontSizeMedium,
+                      fontWeight: DesignTokens.fontWeightBold,
+                    ),
+                  ),
+                  const SizedBox(height: DesignTokens.spacingSmall),
                   Row(
                     children: [
                       Expanded(
@@ -297,7 +406,7 @@ class _AdvancedFilteringScreenState extends State<AdvancedFilteringScreen> {
                     ],
                   ),
                   const SizedBox(height: DesignTokens.spacingMedium),
-                  
+
                   // Apply filters button
                   SizedBox(
                     width: double.infinity,
@@ -312,39 +421,40 @@ class _AdvancedFilteringScreenState extends State<AdvancedFilteringScreen> {
               ),
             ),
           ),
-          
+
           if (_responseText.isNotEmpty)
             Padding(
               padding: const EdgeInsets.all(DesignTokens.spacingMedium),
               child: StatusCard(message: _responseText),
             ),
-          
+
           Expanded(
             flex: 3,
-            child: _proxies.isEmpty
-                ? const Center(
-                    child: Text(
-                      'No proxies fetched yet. Apply filters to get started.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: DesignTokens.fontSizeMedium,
-                        color: DesignTokens.textSecondaryColor,
-                      ),
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(DesignTokens.spacingMedium),
-                    itemCount: _proxies.length,
-                    itemBuilder: (context, index) {
-                      final proxy = _proxies[index];
-                      return Padding(
-                        padding: const EdgeInsets.only(
-                          bottom: DesignTokens.spacingMedium,
+            child:
+                _proxies.isEmpty
+                    ? const Center(
+                      child: Text(
+                        'No proxies fetched yet. Apply filters to get started.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: DesignTokens.fontSizeMedium,
+                          color: DesignTokens.textSecondaryColor,
                         ),
-                        child: ProxyCard(proxy: proxy),
-                      );
-                    },
-                  ),
+                      ),
+                    )
+                    : ListView.builder(
+                      padding: const EdgeInsets.all(DesignTokens.spacingMedium),
+                      itemCount: _proxies.length,
+                      itemBuilder: (context, index) {
+                        final proxy = _proxies[index];
+                        return Padding(
+                          padding: const EdgeInsets.only(
+                            bottom: DesignTokens.spacingMedium,
+                          ),
+                          child: ProxyCard(proxy: proxy),
+                        );
+                      },
+                    ),
           ),
         ],
       ),

@@ -1,55 +1,6 @@
 import '../entities/proxy.dart';
-
-/// Proxy filter options for fetching and filtering proxies
-class ProxyFilterOptions {
-  /// Maximum number of proxies to return
-  final int count;
-
-  /// Whether to only return HTTPS proxies
-  final bool onlyHttps;
-
-  /// List of country codes to filter by
-  final List<String>? countries;
-
-  /// List of regions to filter by
-  final List<String>? regions;
-
-  /// List of ISPs to filter by
-  final List<String>? isps;
-
-  /// Minimum speed in Mbps
-  final double? minSpeed;
-
-  /// Whether to only return proxies that support websockets
-  final bool? requireWebsockets;
-
-  /// Whether to only return proxies that support SOCKS protocol
-  final bool? requireSocks;
-
-  /// Specific SOCKS version to filter by
-  final int? socksVersion;
-
-  /// Whether to only return authenticated proxies
-  final bool? requireAuthentication;
-
-  /// Whether to only return anonymous proxies
-  final bool? requireAnonymous;
-
-  /// Creates a new [ProxyFilterOptions] instance
-  const ProxyFilterOptions({
-    this.count = 20,
-    this.onlyHttps = false,
-    this.countries,
-    this.regions,
-    this.isps,
-    this.minSpeed,
-    this.requireWebsockets,
-    this.requireSocks,
-    this.socksVersion,
-    this.requireAuthentication,
-    this.requireAnonymous,
-  });
-}
+import '../entities/proxy_filter_options.dart';
+import '../entities/proxy_validation_options.dart';
 
 /// Repository interface for proxy management
 abstract class ProxyRepository {
@@ -91,6 +42,26 @@ abstract class ProxyRepository {
     Proxy proxy, {
     String? testUrl,
     int timeout = 10000,
+  });
+
+  /// Validates a proxy with advanced options
+  ///
+  /// [proxy] is the proxy to validate
+  /// [options] contains all the validation options
+  Future<bool> validateProxyWithOptions(
+    Proxy proxy, {
+    ProxyValidationOptions options = const ProxyValidationOptions(),
+  });
+
+  /// Validates multiple proxies in parallel
+  ///
+  /// [proxies] is the list of proxies to validate
+  /// [options] contains all the validation options
+  /// [onProgress] is a callback for progress updates during validation
+  Future<List<bool>> validateProxies(
+    List<Proxy> proxies, {
+    ProxyValidationOptions options = const ProxyValidationOptions(),
+    void Function(int completed, int total)? onProgress,
   });
 
   /// Gets a list of validated proxies

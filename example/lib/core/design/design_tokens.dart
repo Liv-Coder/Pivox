@@ -27,6 +27,9 @@ class DesignTokens {
 
   static const Color dividerColor = Color(0xFFEEEEEE);
 
+  static const Color chipTextColor = Color(0xFF757575);
+  static const Color chipSelectedTextColor = Color(0xFFFFFFFF);
+
   // Dark Theme Colors
   static const Color darkPrimaryColor = Color(0xFF3D5CCC);
   static const Color darkPrimaryColorLight = Color(0xFF5A78E2);

@@ -10,17 +10,55 @@ Pivox is a lightweight yet powerful Dart/Flutter package that provides seamless 
 
 Automatically fetch and update proxies from trusted free sources, including web scraping target sites and free-proxy APIs.
 
-### Smart Proxy Rotation with Scoring System
+### Smart Proxy Rotation with Advanced Scoring System
 
-Utilize advanced rotation algorithms with intelligent proxy scoring based on performance metrics to cycle through a pool of validated proxies, ensuring optimal connectivity and performance.
+Utilize advanced rotation algorithms with intelligent proxy scoring based on comprehensive performance metrics including success rate, response time, uptime, stability, and geographical distance to cycle through a pool of validated proxies, ensuring optimal connectivity and performance.
+
+#### Multiple Rotation Strategies
+
+- **Round Robin**: Simple sequential rotation through available proxies
+- **Random**: Random selection from the proxy pool
+- **Weighted**: Selection based on proxy performance metrics
+- **Geo-based**: Rotation through proxies from different countries or regions
+- **Advanced**: Combines multiple factors including failure tracking and usage frequency
 
 ### Parallel Proxy Health Validation
 
-Built-in proxy verification system that tests multiple proxies simultaneously using parallel processing, dramatically improving validation speed while maintaining accuracy.
+Built-in proxy verification system that tests multiple proxies simultaneously using parallel processing, dramatically improving validation speed while maintaining accuracy. Supports authenticated proxies and custom validation parameters.
 
-### Performance Tracking and Optimization
+#### Enhanced Validation Features
 
-Comprehensive proxy performance tracking with metrics like success rate, response time, and usage statistics to optimize proxy selection and rotation.
+- **Isolate-based Parallel Processing**: Utilizes Dart Isolates for true parallel validation
+- **Authentication Support**: Basic, Digest, and NTLM authentication methods
+- **SOCKS Proxy Support**: Validation for SOCKS4 and SOCKS5 proxies
+- **Custom Validation Parameters**: Configure timeout, test URLs, and validation criteria
+
+### Advanced Filtering and Configuration
+
+Powerful filtering options for proxies based on country, region, ISP, speed, protocol support, and more. Configure which proxy sources to use and add custom sources.
+
+#### Comprehensive Filtering Options
+
+```dart
+final proxies = await pivox.fetchProxies(
+  options: ProxyFilterOptions(
+    count: 10,
+    onlyHttps: true,
+    countries: ['US', 'CA'],
+    regions: ['California'],
+    isps: ['Comcast'],
+    minSpeed: 100,
+    requireWebsockets: true,
+    requireSocks: false,
+    requireAuthentication: false,
+    requireAnonymous: true,
+  ),
+);
+```
+
+### Performance Tracking and Analytics
+
+Comprehensive proxy performance tracking with detailed analytics including success rate, response time, uptime, stability, and usage statistics to optimize proxy selection and rotation.
 
 ### Seamless HTTP Client Integration
 
@@ -36,7 +74,7 @@ Add Pivox to your `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  pivox: ^0.0.1
+  pivox: ^1.0.0
 ```
 
 Or install it from the command line:
@@ -83,6 +121,15 @@ final proxyManager = await Pivox.builder()
   .withHttpClient(httpClient)
   .withSharedPreferences(sharedPreferences)
   .withMaxConcurrentValidations(20) // Increase parallel validations
+  .withAnalytics(true) // Enable analytics tracking
+  .withRotationStrategy(RotationStrategyType.weighted) // Use weighted rotation
+  .withProxySourceConfig(ProxySourceConfig.only(
+    freeProxyList: true,
+    geoNode: true,
+    proxyScrape: false,
+    proxyNova: false,
+    custom: ['https://my-custom-proxy-source.com'],
+  )) // Configure proxy sources
   .buildProxyManager();
 
 // Create an HTTP client with the configured proxy manager
@@ -142,8 +189,18 @@ final postResponse = await httpClient.post(
 print('Post response: ${postResponse.body}');
 
 // Example 3: Manually setting a specific proxy
-// Get a proxy from a specific country (if available)
-final proxies = await proxyManager.fetchProxies(countries: ['US']);
+// Get a proxy from a specific country with advanced filtering
+final proxies = await proxyManager.fetchProxies(
+  options: ProxyFilterOptions(
+    count: 5,
+    onlyHttps: true,
+    countries: ['US'],
+    regions: ['California'],
+    minSpeed: 10.0, // Minimum 10 Mbps
+    requireAnonymous: true,
+  ),
+);
+
 if (proxies.isNotEmpty) {
   final specificProxy = proxies.first;
   httpClient.setProxy(specificProxy);
@@ -230,6 +287,36 @@ dio.close();
 
 ### Advanced Features
 
+#### Advanced Rotation Strategies
+
+```dart
+import 'package:pivox/pivox.dart';
+
+// Create a proxy manager with weighted rotation strategy
+final proxyManager = await Pivox.builder()
+  .withRotationStrategy(RotationStrategyType.weighted)
+  .build();
+
+// Get the next proxy using weighted selection based on performance
+final proxy = proxyManager.getNextProxy();
+
+// Create a proxy manager with geo-based rotation strategy
+final geoProxyManager = await Pivox.builder()
+  .withRotationStrategy(RotationStrategyType.geoBased)
+  .build();
+
+// Get the next proxy from a different country than the previous one
+final geoProxy = geoProxyManager.getNextProxy();
+
+// Create a proxy manager with advanced rotation strategy
+final advancedProxyManager = await Pivox.builder()
+  .withRotationStrategy(RotationStrategyType.advanced)
+  .build();
+
+// Get the next proxy using advanced selection criteria
+final advancedProxy = advancedProxyManager.getNextProxy();
+```
+
 #### Parallel Proxy Validation with Progress Tracking
 
 ```dart
@@ -238,18 +325,22 @@ import 'package:pivox/pivox.dart';
 // Get a proxy manager with default settings
 final proxyManager = await Pivox.createProxyManager();
 
-// Fetch and validate proxies with progress tracking
+// Fetch and validate proxies with progress tracking and advanced filtering
 final validatedProxies = await proxyManager.fetchValidatedProxies(
-  count: 10,
-  onlyHttps: true,
-  countries: ['US', 'CA'],
+  options: ProxyFilterOptions(
+    count: 10,
+    onlyHttps: true,
+    countries: ['US', 'CA'],
+    requireWebsockets: true,
+    requireAnonymous: true,
+  ),
   onProgress: (completed, total) {
     print('Validated $completed of $total proxies');
   },
 );
 ```
 
-#### Intelligent Proxy Selection with Scoring
+#### Intelligent Proxy Selection with Advanced Scoring
 
 ```dart
 import 'package:pivox/pivox.dart';
@@ -257,6 +348,7 @@ import 'package:pivox/pivox.dart';
 // Get a proxy manager with customized settings
 final proxyManager = await Pivox.builder()
   .withMaxConcurrentValidations(15)
+  .withAnalytics(true)
   .buildProxyManager();
 
 // Get a proxy based on its performance score
@@ -278,6 +370,12 @@ final isValid = await proxyManager.validateSpecificProxy(
   timeout: 5000,
   updateScore: true, // Update the proxy's score based on the result
 );
+
+// Get analytics data
+final analytics = await proxyManager.getAnalytics();
+print('Total proxies fetched: ${analytics?.totalProxiesFetched}');
+print('Success rate: ${analytics?.averageSuccessRate}');
+print('Average response time: ${analytics?.averageResponseTime} ms');
 ```
 
 ### Complete Example
@@ -292,6 +390,8 @@ Pivox fetches proxies from the following free proxy sources:
 - [GeoNode](https://geonode.com/free-proxy-list)
 - [ProxyScrape](https://proxyscrape.com/free-proxy-list)
 - [ProxyNova](https://www.proxynova.com/proxy-server-list/)
+
+You can configure which sources to use and add your own custom sources using the `ProxySourceConfig` class.
 
 ## Documentation
 
