@@ -64,6 +64,16 @@ Comprehensive proxy performance tracking with detailed analytics including succe
 
 Easily integrate with popular Dart HTTP clients like http and dio using custom interceptors and adapters.
 
+### Advanced Web Scraping Capabilities
+
+Pivox includes powerful web scraping features to handle even the most challenging websites:
+
+- **Dynamic User Agent Management**: Automatically rotate through modern, realistic user agents to avoid detection
+- **Specialized Site Handlers**: Custom handlers for problematic websites with anti-scraping measures
+- **Structured Data Extraction**: Extract structured data from HTML content using CSS selectors
+- **Rate Limiting**: Respect website rate limits to avoid blocking
+- **Cookie Management**: Handle cookies for authenticated scraping
+
 ### Developer-Friendly & Extensible
 
 Simple configuration, clear documentation, and extensible modules allow you to tailor the package to your unique web scraping or network routing needs.
@@ -378,6 +388,73 @@ print('Success rate: ${analytics?.averageSuccessRate}');
 print('Average response time: ${analytics?.averageResponseTime} ms');
 ```
 
+#### Advanced Web Scraping with Specialized Site Handlers
+
+```dart
+import 'package:pivox/pivox.dart';
+
+// Create a web scraper with proxy support
+final proxyManager = await Pivox.createProxyManager();
+final webScraper = WebScraper(
+  proxyManager: proxyManager,
+  defaultTimeout: 60000,
+  maxRetries: 5,
+);
+
+// Create a dynamic user agent manager
+final userAgentManager = DynamicUserAgentManager();
+
+// Check if the site is known to be problematic
+final url = 'https://onlinekhabar.com';
+final isProblematic = webScraper.reputationTracker.isProblematicSite(url);
+
+String html;
+if (isProblematic || url.contains('onlinekhabar.com') || url.contains('vegamovies')) {
+  // Use specialized approach for problematic sites
+  print('Using specialized handler for problematic site');
+  html = await webScraper.fetchFromProblematicSite(
+    url: url,
+    headers: {
+      'User-Agent': userAgentManager.getRandomUserAgentForSite(url),
+    },
+    timeout: 60000,
+    retries: 5,
+  );
+} else {
+  // Use standard approach
+  html = await webScraper.fetchHtml(
+    url: url,
+    headers: {
+      'User-Agent': userAgentManager.getRandomUserAgent(),
+    },
+  );
+}
+
+// Extract structured data
+final selectors = {
+  'title': 'title',
+  'heading': 'h1',
+  'article': '.article-body',
+  'links': 'a',
+};
+
+final attributes = {
+  'links': 'href',
+};
+
+final data = webScraper.extractStructuredData(
+  html: html,
+  selectors: selectors,
+  attributes: attributes,
+);
+
+print('Extracted ${data.length} items');
+data.forEach((item) {
+  print('Title: ${item['title']}');
+  print('Heading: ${item['heading']}');
+});
+```
+
 ### Complete Example
 
 For a complete example with a modern UI featuring dark mode support, see the [example](https://github.com/Liv-Coder/Pivox-/tree/main/example) directory.
@@ -395,10 +472,18 @@ You can configure which sources to use and add your own custom sources using the
 
 ## Documentation
 
-Comprehensive documentation is available in the [documentation.md](../docs/documentation.md) file, which includes:
+Comprehensive documentation is available in the following files:
+
+- [Main Documentation](../docs/documentation.md): Detailed API reference, usage examples, and troubleshooting guide
+- [Web Scraping Documentation](../docs/web_scraping.md): Specialized documentation for web scraping features
+
+The documentation includes:
 
 - Detailed API reference
 - Advanced usage examples
+- Web scraping techniques
+- Dynamic user agent management
+- Specialized site handlers
 - Troubleshooting guide
 - Best practices
 

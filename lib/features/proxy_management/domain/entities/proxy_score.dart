@@ -50,6 +50,9 @@ class ProxyScore {
     this.consecutiveFailures = 0,
   });
 
+  /// Gets the composite score based on multiple factors
+  double get compositeScore => calculateScore();
+
   /// Creates a new [ProxyScore] with default values
   factory ProxyScore.initial() {
     return ProxyScore(
@@ -68,7 +71,7 @@ class ProxyScore {
   }
 
   /// Creates a new [ProxyScore] with updated values after a successful request
-  ProxyScore recordSuccess(int responseTime) {
+  ProxyScore recordSuccess(double responseTime) {
     final newSuccessfulRequests = successfulRequests + 1;
     final totalRequests = newSuccessfulRequests + failedRequests;
 

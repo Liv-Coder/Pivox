@@ -8,9 +8,10 @@ Pivox is a powerful Dart/Flutter package for free proxy rotation with a clean ar
 2. [Core Concepts](#core-concepts)
 3. [Basic Usage](#basic-usage)
 4. [Advanced Usage](#advanced-usage)
-5. [API Reference](#api-reference)
-6. [Examples](#examples)
-7. [Troubleshooting](#troubleshooting)
+5. [Web Scraping](#web-scraping)
+6. [API Reference](#api-reference)
+7. [Examples](#examples)
+8. [Troubleshooting](#troubleshooting)
 
 ## Installation
 
@@ -277,6 +278,140 @@ final proxyManager = await Pivox.builder()
   .withProxySourceConfig(customConfig)
   .buildProxyManager();
 ```
+
+## Web Scraping
+
+Pivox provides advanced web scraping capabilities with robust features to handle challenging websites and avoid detection.
+
+### Basic Web Scraping
+
+```dart
+// Create a web scraper
+final webScraper = await Pivox.createWebScraper();
+
+// Fetch HTML content
+final html = await webScraper.fetchHtml(
+  url: 'https://example.com',
+);
+
+// Extract data using CSS selectors
+final titles = webScraper.extractData(
+  html: html,
+  selector: 'h1',
+);
+
+print('Extracted ${titles.length} titles:');
+titles.forEach(print);
+```
+
+### Dynamic User Agent Management
+
+Pivox includes a powerful `DynamicUserAgentManager` that provides realistic, up-to-date user agents to help avoid detection:
+
+```dart
+// Create a dynamic user agent manager
+final userAgentManager = DynamicUserAgentManager();
+
+// Get a random user agent
+final userAgent = userAgentManager.getRandomUserAgent();
+
+// Get a user agent for a specific browser type
+final chromeAgent = userAgentManager.getUserAgentByType(BrowserType.chrome);
+final mobileAgent = userAgentManager.getUserAgentByType(BrowserType.mobile);
+
+// Get a user agent specifically for a problematic site
+final siteSpecificAgent = userAgentManager.getRandomUserAgentForSite('https://difficult-site.com');
+
+// Get a sequence of user agents to try for a problematic site
+final userAgentSequence = userAgentManager.getUserAgentSequenceForProblematicSite('https://difficult-site.com');
+```
+
+### Specialized Site Handlers
+
+Pivox includes specialized handlers for websites that are particularly difficult to scrape:
+
+```dart
+// Check if a site is known to be problematic
+final isProblematic = webScraper.reputationTracker.isProblematicSite(url);
+
+// Use specialized handler for problematic sites
+if (isProblematic || url.contains('onlinekhabar.com') || url.contains('vegamovies')) {
+  // Use specialized approach
+  final html = await webScraper.fetchFromProblematicSite(
+    url: url,
+    timeout: 60000, // 60 seconds
+    retries: 5,
+  );
+} else {
+  // Use standard approach
+  final html = await webScraper.fetchHtml(
+    url: url,
+  );
+}
+```
+
+### Structured Data Extraction
+
+Pivox can extract structured data from HTML content:
+
+```dart
+// Define selectors for structured data
+final selectors = {
+  'title': '.product-title',
+  'price': '.product-price',
+  'description': '.product-description',
+  'image': '.product-image',
+};
+
+// Define attributes for certain elements
+final attributes = {
+  'image': 'src',
+};
+
+// Extract structured data
+final products = webScraper.extractStructuredData(
+  html: html,
+  selectors: selectors,
+  attributes: attributes,
+);
+
+print('Extracted ${products.length} products:');
+products.forEach((product) {
+  print('Title: ${product['title']}');
+  print('Price: ${product['price']}');
+});
+```
+
+### Advanced Web Scraping Features
+
+Pivox provides additional advanced features for web scraping:
+
+```dart
+// Create an advanced web scraper
+final advancedScraper = AdvancedWebScraper(
+  proxyManager: proxyManager,
+  rateLimiter: RateLimiter(defaultDelayMs: 1000),
+  userAgentRotator: UserAgentRotator(),
+  cookieManager: await CookieManager.create(),
+);
+
+// Scrape with rate limiting
+await advancedScraper.scrapeWithRateLimit(
+  url: 'https://example.com',
+  delayMs: 2000, // 2 seconds between requests
+);
+
+// Scrape with cookies
+final html = await advancedScraper.scrapeWithCookies(
+  url: 'https://example.com/login',
+  cookies: {
+    'session': 'abc123',
+    'user': 'example',
+  },
+);
+```
+
+For more detailed information about web scraping features, see the [Web Scraping Documentation](web_scraping.md).
 
 ## API Reference
 

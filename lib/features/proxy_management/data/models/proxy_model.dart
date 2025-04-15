@@ -11,25 +11,24 @@ class ProxyModel extends Proxy {
   /// Response time of the proxy in milliseconds (optional)
   final int? responseTime;
 
-  /// Score of the proxy (optional)
-  final ProxyScore? score;
-
   /// Creates a new [ProxyModel] instance
-  const ProxyModel({
+  ProxyModel({
     required super.ip,
     required super.port,
     super.countryCode,
     super.isHttps,
+    super.protocol,
     super.anonymityLevel,
     super.region,
     super.isp,
     super.speed,
     super.supportsWebsockets,
-    super.protocol,
     super.auth,
     this.lastChecked,
     this.responseTime,
-    this.score,
+    super.score,
+    super.username,
+    super.password,
   });
 
   /// Creates a [ProxyModel] from a JSON map
@@ -109,14 +108,14 @@ class ProxyModel extends Proxy {
       auth: proxy.auth,
       lastChecked: null,
       responseTime: null,
-      score: ProxyScore.initial(),
+      score: proxy.score,
     );
   }
 
   /// Creates a new [ProxyModel] with an updated score after a successful request
   ProxyModel withSuccessfulRequest(int responseTime) {
     final newScore = (score ?? ProxyScore.initial()).recordSuccess(
-      responseTime,
+      responseTime.toDouble(),
     );
 
     return ProxyModel(

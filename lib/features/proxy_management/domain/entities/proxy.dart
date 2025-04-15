@@ -1,5 +1,6 @@
 import 'proxy_auth.dart';
 import 'proxy_protocol.dart';
+import 'proxy_score.dart';
 
 /// Represents a proxy server
 class Proxy {
@@ -45,6 +46,9 @@ class Proxy {
   /// Authentication credentials (optional)
   final ProxyAuth? auth;
 
+  /// Performance and reliability score for this proxy
+  final ProxyScore? score;
+
   /// Username for authenticated proxies (optional)
   /// @deprecated Use auth instead
   String? get username => auth?.username;
@@ -66,6 +70,7 @@ class Proxy {
     this.speed,
     this.supportsWebsockets,
     this.auth,
+    this.score,
     String? username,
     String? password,
   }) : assert(

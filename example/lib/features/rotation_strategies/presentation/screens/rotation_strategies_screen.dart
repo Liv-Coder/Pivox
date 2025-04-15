@@ -425,6 +425,8 @@ class _RotationStrategiesScreenState extends State<RotationStrategiesScreen> {
         return 'Rotates through proxies from different countries';
       case RotationStrategyType.advanced:
         return 'Uses multiple factors including failure tracking and usage frequency';
+      case RotationStrategyType.adaptive:
+        return 'Learns from proxy performance and adapts selection over time';
     }
   }
 }

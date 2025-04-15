@@ -7,6 +7,8 @@ import '../../../../../core/services/proxy_service.dart';
 import '../../../../../core/services/service_locator.dart';
 import '../../../../../core/widgets/action_button.dart';
 import '../../../../../core/widgets/status_card.dart';
+import '../widgets/log_display.dart';
+import '../widgets/error_dialog.dart';
 
 /// Screen for demonstrating web scraping capabilities
 class WebScrapingScreen extends StatefulWidget {
@@ -27,6 +29,9 @@ class _WebScrapingScreenState extends State<WebScrapingScreen> {
 
   // Web scraper
   WebScraper? _webScraper;
+
+  // Scraping logger
+  ScrapingLogger? _logger;
 
   // Form controllers
   final _urlController = TextEditingController();
@@ -54,8 +59,42 @@ class _WebScrapingScreenState extends State<WebScrapingScreen> {
     });
 
     try {
-      // Initialize the web scraper
-      _webScraper = WebScraper(proxyManager: _proxyService.proxyManager);
+      // Create a logger
+      _logger = ScrapingLogger();
+
+      // Initialize the web scraper with enhanced configuration
+      _webScraper = WebScraper(
+        proxyManager: _proxyService.proxyManager,
+        defaultTimeout: 60000, // 60 seconds timeout
+        maxRetries: 5, // 5 retry attempts
+        logger: _logger, // Use our logger
+        defaultHeaders: {
+          'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'Accept':
+              'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1',
+        },
+      );
+
+      _logger?.info('Web scraper initialized');
+
+      // Ensure we have validated proxies available
+      try {
+        // Try to get a proxy to see if any are available
+        _proxyService.proxyManager.getNextProxy(validated: true);
+      } catch (e) {
+        setState(() {
+          _statusMessage = 'Fetching and validating proxies...';
+        });
+
+        // Fetch and validate proxies if none are available
+        await _proxyService.proxyManager.fetchValidatedProxies(
+          options: ProxyFilterOptions(count: 10, onlyHttps: true),
+        );
+      }
 
       setState(() {
         _statusMessage = 'Web scraper initialized successfully';
@@ -72,7 +111,7 @@ class _WebScrapingScreenState extends State<WebScrapingScreen> {
   }
 
   Future<void> _scrapeWebsite() async {
-    final url = _urlController.text.trim();
+    var url = _urlController.text.trim();
     final selector = _selectorController.text.trim();
     final attribute = _attributeController.text.trim();
 
@@ -90,15 +129,56 @@ class _WebScrapingScreenState extends State<WebScrapingScreen> {
       return;
     }
 
+    _logger?.info('Starting to scrape website: $url');
+
+    // Check if the site is known to be problematic
+    final isProblematic =
+        _webScraper?.reputationTracker.isProblematicSite(url) ?? false;
+
+    // Check for specific problematic sites
+    final isKnownProblematicSite =
+        url.contains('onlinekhabar.com') || url.contains('vegamovies');
+
+    if (isProblematic || isKnownProblematicSite) {
+      _logger?.warning('Site is known to be problematic: $url');
+      setState(() {
+        _statusMessage =
+            'Note: This site may have anti-scraping measures. Using specialized approach...';
+      });
+    }
+
+    // Ensure URL has proper scheme
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://$url';
+    }
+
     setState(() {
       _isLoading = true;
       _statusMessage = 'Scraping website...';
       _scrapedData = [];
     });
 
+    _logger?.info('Starting scraping process with timeout=60000ms, retries=5');
+
     try {
-      // Fetch the HTML content
-      final html = await _webScraper!.fetchHtml(url: url);
+      String html;
+
+      // Use specialized handler for known problematic sites
+      if (isKnownProblematicSite) {
+        _logger?.info('Using specialized handler for problematic site');
+        html = await _webScraper!.fetchFromProblematicSite(
+          url: url,
+          timeout: 60000, // Increase timeout to 60 seconds
+          retries: 5, // Try up to 5 times
+        );
+      } else {
+        // Use standard fetch with retry for normal sites
+        html = await _webScraper!.fetchHtmlWithRetry(
+          url: url,
+          timeout: 60000, // Increase timeout to 60 seconds
+          retries: 5, // Try up to 5 times
+        );
+      }
 
       // Extract data using the selector
       final data = _webScraper!.extractData(
@@ -110,14 +190,32 @@ class _WebScrapingScreenState extends State<WebScrapingScreen> {
       // Convert to structured data
       final structuredData = data.map((item) => {'value': item}).toList();
 
+      // Record success in the reputation tracker
+      _webScraper?.reputationTracker.recordSuccess(url);
+      _logger?.success('Successfully scraped ${data.length} items from $url');
+
       setState(() {
         _scrapedData = structuredData;
         _statusMessage = 'Successfully scraped ${structuredData.length} items';
       });
     } catch (e) {
+      // Record failure in the reputation tracker
+      _webScraper?.reputationTracker.recordFailure(url, e.toString());
+      _logger?.error('Scraping failed: ${e.toString()}');
+
       setState(() {
         _statusMessage = 'Failed to scrape website: $e';
       });
+
+      // Show error dialog
+      if (mounted) {
+        showScrapingErrorDialog(
+          context: context,
+          title: 'Scraping Failed',
+          errorMessage: e.toString(),
+          logger: _logger!,
+        );
+      }
     } finally {
       setState(() {
         _isLoading = false;
@@ -126,7 +224,7 @@ class _WebScrapingScreenState extends State<WebScrapingScreen> {
   }
 
   Future<void> _scrapeStructuredData() async {
-    final url = _urlController.text.trim();
+    var url = _urlController.text.trim();
 
     if (url.isEmpty) {
       setState(() {
@@ -135,15 +233,58 @@ class _WebScrapingScreenState extends State<WebScrapingScreen> {
       return;
     }
 
+    _logger?.info('Starting to scrape structured data from: $url');
+
+    // Check if the site is known to be problematic
+    final isProblematic =
+        _webScraper?.reputationTracker.isProblematicSite(url) ?? false;
+
+    // Check for specific problematic sites
+    final isKnownProblematicSite =
+        url.contains('onlinekhabar.com') || url.contains('vegamovies');
+
+    if (isProblematic || isKnownProblematicSite) {
+      _logger?.warning('Site is known to be problematic: $url');
+      setState(() {
+        _statusMessage =
+            'Note: This site may have anti-scraping measures. Using specialized approach...';
+      });
+    }
+
+    // Ensure URL has proper scheme
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://$url';
+    }
+
     setState(() {
       _isLoading = true;
       _statusMessage = 'Scraping structured data...';
       _scrapedData = [];
     });
 
+    _logger?.info(
+      'Starting structured data scraping process with timeout=60000ms, retries=5',
+    );
+
     try {
-      // Fetch the HTML content
-      final html = await _webScraper!.fetchHtml(url: url);
+      String html;
+
+      // Use specialized handler for known problematic sites
+      if (isKnownProblematicSite) {
+        _logger?.info('Using specialized handler for problematic site');
+        html = await _webScraper!.fetchFromProblematicSite(
+          url: url,
+          timeout: 60000, // Increase timeout to 60 seconds
+          retries: 5, // Try up to 5 times
+        );
+      } else {
+        // Use standard fetch with retry for normal sites
+        html = await _webScraper!.fetchHtmlWithRetry(
+          url: url,
+          timeout: 60000, // Increase timeout to 60 seconds
+          retries: 5, // Try up to 5 times
+        );
+      }
 
       // Define selectors for common elements
       final selectors = {
@@ -165,14 +306,33 @@ class _WebScrapingScreenState extends State<WebScrapingScreen> {
         attributes: attributes,
       );
 
+      // Record success in the reputation tracker
+      _webScraper?.reputationTracker.recordSuccess(url);
+      _logger?.success('Successfully scraped structured data from $url');
+      _logger?.info('Extracted ${structuredData.length} structured data items');
+
       setState(() {
         _scrapedData = structuredData;
         _statusMessage = 'Successfully scraped structured data';
       });
     } catch (e) {
+      // Record failure in the reputation tracker
+      _webScraper?.reputationTracker.recordFailure(url, e.toString());
+      _logger?.error('Structured data scraping failed: ${e.toString()}');
+
       setState(() {
         _statusMessage = 'Failed to scrape structured data: $e';
       });
+
+      // Show error dialog
+      if (mounted) {
+        showScrapingErrorDialog(
+          context: context,
+          title: 'Structured Data Scraping Failed',
+          errorMessage: e.toString(),
+          logger: _logger!,
+        );
+      }
     } finally {
       setState(() {
         _isLoading = false;
@@ -193,6 +353,20 @@ class _WebScrapingScreenState extends State<WebScrapingScreen> {
               // Status card
               StatusCard(message: _statusMessage),
               const SizedBox(height: DesignTokens.spacingMedium),
+
+              // Log display
+              if (_logger != null) ...[
+                const Text(
+                  'Scraping Logs',
+                  style: TextStyle(
+                    fontSize: DesignTokens.fontSizeLarge,
+                    fontWeight: DesignTokens.fontWeightBold,
+                  ),
+                ),
+                const SizedBox(height: DesignTokens.spacingSmall),
+                LogDisplay(logger: _logger!, maxHeight: 150),
+                const SizedBox(height: DesignTokens.spacingMedium),
+              ],
 
               // Input form
               Card(

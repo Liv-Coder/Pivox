@@ -7,9 +7,9 @@ import 'package:pivox/features/proxy_management/domain/strategies/proxy_rotation
 void main() {
   group('ProxyRotationStrategy', () {
     final proxies = [
-      const Proxy(ip: '1.1.1.1', port: 8080),
-      const Proxy(ip: '2.2.2.2', port: 8080),
-      const Proxy(ip: '3.3.3.3', port: 8080),
+      Proxy(ip: '1.1.1.1', port: 8080),
+      Proxy(ip: '2.2.2.2', port: 8080),
+      Proxy(ip: '3.3.3.3', port: 8080),
     ];
 
     final proxyModels = [

@@ -2,6 +2,7 @@ import 'dart:math';
 
 import '../entities/proxy.dart';
 import '../../data/models/proxy_model.dart';
+import 'adaptive_rotation_strategy.dart';
 
 /// Abstract class for proxy rotation strategies
 abstract class ProxyRotationStrategy {
@@ -301,6 +302,8 @@ class ProxyRotationStrategyFactory {
         return WeightedStrategy();
       case RotationStrategyType.leastRecentlyUsed:
         return LeastRecentlyUsedStrategy();
+      case RotationStrategyType.adaptive:
+        return AdaptiveRotationStrategy();
     }
   }
 }
@@ -318,4 +321,7 @@ enum RotationStrategyType {
 
   /// Least recently used strategy
   leastRecentlyUsed,
+
+  /// Adaptive strategy that learns from proxy performance
+  adaptive,
 }

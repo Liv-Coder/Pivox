@@ -1,16 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 
+import 'core/app/app_layout.dart';
 import 'core/design/app_theme.dart';
 import 'core/services/service_locator.dart';
 import 'core/services/theme_manager.dart';
-import 'features/advanced_filtering/presentation/screens/advanced_filtering_screen.dart';
-import 'features/analytics/presentation/screens/analytics_screen.dart';
-import 'features/home/presentation/screens/home_screen.dart';
-import 'features/rotation_strategies/presentation/screens/rotation_strategies_screen.dart';
-import 'features/web_scraping/presentation/screens/web_scraping_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Apply system UI overlay style
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+      statusBarBrightness: Brightness.light,
+    ),
+  );
+
+  // Load Google Fonts
+  await GoogleFonts.pendingFonts([GoogleFonts.inter()]);
 
   // Initialize service locator
   await setupServiceLocator();
@@ -44,23 +54,32 @@ class _MyAppState extends State<MyApp> {
 
   void _themeListener() {
     setState(() {});
+
+    // Update system UI based on theme
+    final isDark =
+        _themeManager.themeMode == ThemeMode.dark ||
+        (_themeManager.themeMode == ThemeMode.system &&
+            WidgetsBinding.instance.platformDispatcher.platformBrightness ==
+                Brightness.dark);
+
+    SystemChrome.setSystemUIOverlayStyle(
+      SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Pivox Demo',
+      title: 'Pivox',
       theme: AppTheme.lightTheme(),
       darkTheme: AppTheme.darkTheme(),
       themeMode: _themeManager.themeMode,
-      home: const HomeScreen(title: 'Pivox - Free Proxy Rotator'),
+      home: const AppLayout(),
       debugShowCheckedModeBanner: false,
-      routes: {
-        '/advanced-filtering': (context) => const AdvancedFilteringScreen(),
-        '/analytics': (context) => const AnalyticsScreen(),
-        '/rotation-strategies': (context) => const RotationStrategiesScreen(),
-        '/web-scraping': (context) => const WebScrapingScreen(),
-      },
     );
   }
 }

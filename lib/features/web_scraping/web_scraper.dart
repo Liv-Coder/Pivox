@@ -5,11 +5,15 @@ import 'package:http/http.dart' as http;
 
 import '../proxy_management/presentation/managers/proxy_manager.dart';
 import '../http_integration/http/http_proxy_client.dart';
+import 'adaptive_scraping_strategy.dart';
+import 'site_reputation_tracker.dart';
+import 'scraping_logger.dart';
+import 'specialized_site_handlers.dart';
 
 /// A web scraper that uses proxies to avoid detection and blocking
 class WebScraper {
   /// The proxy manager for getting proxies
-  final ProxyManager _proxyManager;
+  final ProxyManager proxyManager;
 
   /// The HTTP client with proxy support
   final ProxyHttpClient _httpClient;
@@ -26,16 +30,37 @@ class WebScraper {
   /// Maximum number of retry attempts
   final int _maxRetries;
 
+  /// The adaptive scraping strategy
+  final AdaptiveScrapingStrategy _adaptiveStrategy;
+
+  /// The site reputation tracker (accessible through the adaptive strategy)
+  final SiteReputationTracker _reputationTracker;
+
+  /// The scraping logger
+  final ScrapingLogger _logger;
+
+  /// Registry of specialized site handlers
+  final SpecializedSiteHandlerRegistry _specializedHandlers =
+      SpecializedSiteHandlerRegistry();
+
+  /// Gets the site reputation tracker
+  SiteReputationTracker get reputationTracker => _reputationTracker;
+
+  /// Gets the scraping logger
+  ScrapingLogger get logger => _logger;
+
   /// Creates a new [WebScraper] with the given parameters
   WebScraper({
-    required ProxyManager proxyManager,
+    required this.proxyManager,
     ProxyHttpClient? httpClient,
     String? defaultUserAgent,
     Map<String, String>? defaultHeaders,
     int defaultTimeout = 30000,
     int maxRetries = 3,
-  }) : _proxyManager = proxyManager,
-       _httpClient =
+    AdaptiveScrapingStrategy? adaptiveStrategy,
+    SiteReputationTracker? reputationTracker,
+    ScrapingLogger? logger,
+  }) : _httpClient =
            httpClient ??
            ProxyHttpClient(
              proxyManager: proxyManager,
@@ -47,7 +72,12 @@ class WebScraper {
            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
        _defaultHeaders = defaultHeaders ?? {},
        _defaultTimeout = defaultTimeout,
-       _maxRetries = maxRetries;
+       _maxRetries = maxRetries,
+       _reputationTracker = reputationTracker ?? SiteReputationTracker(),
+       _logger = logger ?? ScrapingLogger(),
+       _adaptiveStrategy =
+           adaptiveStrategy ??
+           AdaptiveScrapingStrategy(reputationTracker: reputationTracker);
 
   /// Fetches HTML content from the given URL
   ///
@@ -203,52 +233,155 @@ class WebScraper {
     required int timeout,
     required int retries,
   }) async {
+    _logger.info('Starting to fetch URL: $url');
+
+    // Check if we have a specialized handler for this URL
+    if (_specializedHandlers.hasHandlerForUrl(url)) {
+      _logger.info('Using specialized handler for URL: $url');
+      try {
+        final handler = _specializedHandlers.getHandlerForUrl(url)!;
+        return await handler.fetchHtml(
+          url: url,
+          headers: headers,
+          timeout: timeout,
+          logger: _logger,
+        );
+      } catch (e) {
+        _logger.error('Specialized handler failed: $e');
+        _logger.info('Falling back to standard fetching mechanism');
+        // Fall through to standard mechanism
+      }
+    }
+
+    // Get the optimal strategy for this URL
+    final strategy = _adaptiveStrategy.getStrategyForUrl(url);
+
+    // Use the strategy parameters or the provided ones
+    final effectiveRetries =
+        strategy.retries > retries ? strategy.retries : retries;
+    final effectiveTimeout =
+        strategy.timeout > timeout ? strategy.timeout : timeout;
+    final effectiveHeaders = Map<String, String>.from(headers);
+    effectiveHeaders.addAll(strategy.headers);
+
+    _logger.info(
+      'Using strategy: retries=$effectiveRetries, timeout=${effectiveTimeout}ms',
+    );
+
+    // Ensure URL has proper scheme
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://$url';
+      _logger.info('URL scheme added: $url');
+    }
+
     int attempts = 0;
     Exception? lastException;
+    String? lastErrorMessage;
+    int currentBackoff = strategy.initialBackoff;
 
-    while (attempts < retries) {
+    while (attempts < effectiveRetries) {
       attempts++;
 
       try {
-        // Get a fresh proxy for each retry
-        _proxyManager.getNextProxy(validated: true);
+        _logger.info('Attempt $attempts/$effectiveRetries');
+
+        // Get a fresh proxy for each retry if needed
+        if (strategy.rotateProxiesOnRetry || attempts == 1) {
+          final proxy = proxyManager.getNextProxy(
+            validated: strategy.validateProxies,
+          );
+          _logger.proxy('Using proxy: ${proxy.ip}:${proxy.port}');
+        }
 
         // Create a request with a timeout
         final request = http.Request('GET', Uri.parse(url));
-        request.headers.addAll(headers);
+        request.headers.addAll(effectiveHeaders);
+        _logger.request('Sending request to $url');
+
+        // Log headers for debugging
+        _logger.request(
+          'Headers: ${effectiveHeaders.entries.map((e) => '${e.key}: ${e.value}').join(', ')}',
+        );
 
         final response = await _httpClient
             .send(request)
-            .timeout(Duration(milliseconds: timeout));
+            .timeout(Duration(milliseconds: effectiveTimeout));
+
+        _logger.response(
+          'Received response: ${response.statusCode} ${response.reasonPhrase}',
+        );
 
         // Check if the response is successful
         if (response.statusCode >= 200 && response.statusCode < 300) {
-          // We would record success for this proxy if the method existed
-          // _proxyManager.recordSuccess(proxy);
+          // Record success for this URL
+          _adaptiveStrategy.recordSuccess(url);
+          _logger.success('Request successful');
+
+          // Get the response body
+          final body = await response.stream.bytesToString();
+          _logger.success('Received ${body.length} bytes of data');
 
           // Return the response body
-          return await response.stream.bytesToString();
+          return body;
         } else {
-          // We would record failure for this proxy if the method existed
-          // _proxyManager.recordFailure(proxy);
+          // Record failure with the status code
+          final errorMessage = 'HTTP error: ${response.statusCode}';
+          lastErrorMessage = errorMessage;
+          _adaptiveStrategy.recordFailure(url, errorMessage);
+          _logger.error(errorMessage);
 
-          throw ScrapingException(
-            'Failed to fetch URL: HTTP ${response.statusCode}',
-          );
+          throw ScrapingException(errorMessage);
         }
       } catch (e) {
+        // Record the error message
+        lastErrorMessage = e.toString();
+        _adaptiveStrategy.recordFailure(url, lastErrorMessage);
+        _logger.error('Error: $lastErrorMessage');
+
         lastException =
             e is Exception ? e : ScrapingException('Failed to fetch URL: $e');
 
-        // Wait before retrying
-        if (attempts < retries) {
-          await Future.delayed(Duration(milliseconds: 1000 * attempts));
+        // Wait before retrying with exponential backoff
+        if (attempts < effectiveRetries) {
+          // Calculate backoff based on strategy
+          currentBackoff =
+              (currentBackoff * strategy.backoffMultiplier).toInt();
+          if (currentBackoff > strategy.maxBackoff) {
+            currentBackoff = strategy.maxBackoff;
+          }
+
+          _logger.warning(
+            'Retrying in ${currentBackoff}ms (attempt $attempts/$effectiveRetries)',
+          );
+          await Future.delayed(Duration(milliseconds: currentBackoff));
+        } else {
+          _logger.error('All retry attempts failed');
         }
       }
     }
 
-    throw lastException ??
-        ScrapingException('Failed to fetch URL after $retries attempts');
+    // If we've exhausted all retries and the URL is problematic, try one last time with a specialized handler
+    if (_specializedHandlers.hasHandlerForUrl(url)) {
+      _logger.info('Trying specialized handler as last resort for URL: $url');
+      try {
+        final handler = _specializedHandlers.getHandlerForUrl(url)!;
+        return await handler.fetchHtml(
+          url: url,
+          headers: headers,
+          timeout: timeout * 2, // Double the timeout for last resort
+          logger: _logger,
+        );
+      } catch (e) {
+        _logger.error('Last resort specialized handler also failed: $e');
+        // Fall through to throw the original exception
+      }
+    }
+
+    final finalErrorMessage =
+        'Failed to fetch URL after $effectiveRetries attempts';
+    _logger.error(finalErrorMessage);
+
+    throw lastException ?? ScrapingException(finalErrorMessage);
   }
 
   /// Closes the HTTP client

@@ -1,4 +1,5 @@
 import '../entities/proxy.dart';
+import 'adaptive_rotation_strategy.dart';
 import 'advanced_rotation_strategy.dart';
 import 'geo_rotation_strategy.dart';
 import 'proxy_rotation_strategy.dart';
@@ -10,18 +11,21 @@ import 'weighted_rotation_strategy.dart';
 enum RotationStrategyType {
   /// Round-robin rotation strategy
   roundRobin,
-  
+
   /// Random rotation strategy
   random,
-  
+
   /// Advanced rotation strategy
   advanced,
-  
+
   /// Weighted rotation strategy
   weighted,
-  
+
   /// Geo-based rotation strategy
   geoBased,
+
+  /// Adaptive rotation strategy that learns from proxy performance
+  adaptive,
 }
 
 /// Factory for creating proxy rotation strategies
@@ -42,9 +46,13 @@ class RotationStrategyFactory {
         return WeightedRotationStrategy(proxies: proxies);
       case RotationStrategyType.geoBased:
         return GeoRotationStrategy(proxies: proxies);
+      case RotationStrategyType.adaptive:
+        final strategy = AdaptiveRotationStrategy();
+        strategy.updateProxies(proxies);
+        return strategy;
     }
   }
-  
+
   /// Returns the name of the specified rotation strategy type
   static String getStrategyName(RotationStrategyType type) {
     switch (type) {
@@ -58,9 +66,11 @@ class RotationStrategyFactory {
         return 'Weighted';
       case RotationStrategyType.geoBased:
         return 'Geo-Based';
+      case RotationStrategyType.adaptive:
+        return 'Adaptive';
     }
   }
-  
+
   /// Returns the description of the specified rotation strategy type
   static String getStrategyDescription(RotationStrategyType type) {
     switch (type) {
@@ -74,6 +84,8 @@ class RotationStrategyFactory {
         return 'Selects proxies based on their performance scores';
       case RotationStrategyType.geoBased:
         return 'Rotates through proxies from different countries';
+      case RotationStrategyType.adaptive:
+        return 'Learns from proxy performance and adapts selection over time';
     }
   }
 }
