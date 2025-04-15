@@ -4,7 +4,7 @@ version: 1.0.0
 homepage: https://github.com/Liv-Coder/Pivox-
 repository: https://github.com/Liv-Coder/Pivox-
 issue_tracker: https://github.com/Liv-Coder/Pivox-/issues
-documentation: https://github.com/Liv-Coder/Pivox-/tree/main/docs
+documentation: https://github.com/Liv-Coder/Pivox-/tree/main/doc
 
 publish_to: https://pub.dev/
 
@@ -28,7 +28,7 @@ dependencies:
   shared_preferences: ^2.5.3
   path_provider: ^2.1.5
   path: ^1.9.1
-  data_cache_x: 0.1.5
+  data_cache_x: ^0.1.5
   get_it: ^8.0.3
 
 dev_dependencies:

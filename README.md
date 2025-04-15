@@ -474,8 +474,8 @@ You can configure which sources to use and add your own custom sources using the
 
 Comprehensive documentation is available in the following files:
 
-- [Main Documentation](../docs/documentation.md): Detailed API reference, usage examples, and troubleshooting guide
-- [Web Scraping Documentation](../docs/web_scraping.md): Specialized documentation for web scraping features
+- [Main Documentation](../doc/documentation.md): Detailed API reference, usage examples, and troubleshooting guide
+- [Web Scraping Documentation](../doc/web_scraping.md): Specialized documentation for web scraping features
 
 The documentation includes:
 
