@@ -58,3 +58,11 @@ export 'features/web_scraping/web_scraper_extension.dart';
 export 'features/web_scraping/adaptive_scraping_strategy.dart';
 export 'features/web_scraping/site_reputation_tracker.dart';
 export 'features/web_scraping/scraping_logger.dart';
+
+// Headless browser exports
+export 'features/web_scraping/headless_browser/headless_browser.dart';
+export 'features/web_scraping/headless_browser/headless_browser_config.dart';
+export 'features/web_scraping/headless_browser/headless_browser_result.dart';
+export 'features/web_scraping/headless_browser/headless_browser_service.dart';
+export 'features/web_scraping/headless_browser/headless_browser_factory.dart';
+export 'features/web_scraping/headless_browser/specialized_headless_handlers.dart';

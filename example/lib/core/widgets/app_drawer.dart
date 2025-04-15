@@ -3,6 +3,7 @@ import 'package:ionicons/ionicons.dart';
 
 import '../../features/advanced_filtering/presentation/screens/advanced_filtering_screen.dart';
 import '../../features/analytics/presentation/screens/analytics_screen.dart';
+import '../../features/headless_browser/headless_browser_example.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/rotation_strategies/presentation/screens/rotation_strategies_screen.dart';
 import '../../features/web_scraping/presentation/screens/web_scraping_screen.dart';
@@ -175,6 +176,12 @@ class AppDrawer extends StatelessWidget {
                   'Advanced Filtering',
                   Ionicons.options_outline,
                   () => _navigateTo(context, const AdvancedFilteringScreen()),
+                ),
+                _buildDrawerItem(
+                  context,
+                  'Headless Browser',
+                  Ionicons.browsers_outline,
+                  () => _navigateTo(context, const HeadlessBrowserExample()),
                 ),
                 const Divider(),
                 _buildDrawerItem(

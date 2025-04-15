@@ -138,7 +138,7 @@ The `SpecializedSiteHandler` interface defines the contract for site-specific ha
 abstract class SpecializedSiteHandler {
   /// Checks if this handler can handle the given URL
   bool canHandle(String url);
-  
+
   /// Fetches HTML content from the given URL
   Future<String> fetchHtml({
     required String url,
@@ -169,6 +169,7 @@ registry.registerHandler(MyCustomSiteHandler());
 Pivox includes specialized handlers for the following sites:
 
 1. **OnlineKhabarHandler**: Handles onlinekhabar.com with multiple approaches:
+
    - Tries multiple user agents
    - Uses both HttpClient and http package
    - Handles URL format issues (port 443)
@@ -188,7 +189,7 @@ class MyCustomSiteHandler implements SpecializedSiteHandler {
   bool canHandle(String url) {
     return url.contains('example.com');
   }
-  
+
   @override
   Future<String> fetchHtml({
     required String url,
@@ -252,26 +253,26 @@ import 'package:pivox/pivox.dart';
 Future<void> main() async {
   // Create a proxy manager
   final proxyManager = await Pivox.createProxyManager();
-  
+
   // Create a web scraper
   final webScraper = WebScraper(
     proxyManager: proxyManager,
     defaultTimeout: 30000,
     maxRetries: 3,
   );
-  
+
   try {
     // Fetch HTML content
     final html = await webScraper.fetchHtml(
       url: 'https://example.com',
     );
-    
+
     // Extract data using CSS selectors
     final titles = webScraper.extractData(
       html: html,
       selector: 'h1',
     );
-    
+
     print('Extracted ${titles.length} titles:');
     titles.forEach(print);
   } catch (e) {
@@ -290,19 +291,19 @@ import 'package:pivox/pivox.dart';
 Future<void> main() async {
   // Create a proxy manager
   final proxyManager = await Pivox.createProxyManager();
-  
+
   // Create a web scraper
   final webScraper = WebScraper(
     proxyManager: proxyManager,
     defaultTimeout: 60000,
     maxRetries: 5,
   );
-  
+
   try {
     // Check if the site is known to be problematic
     final url = 'https://difficult-site.com';
     final isProblematic = webScraper.reputationTracker.isProblematicSite(url);
-    
+
     String html;
     if (isProblematic) {
       // Use specialized approach for problematic sites
@@ -317,13 +318,13 @@ Future<void> main() async {
         url: url,
       );
     }
-    
+
     // Extract data
     final data = webScraper.extractData(
       html: html,
       selector: '.content',
     );
-    
+
     print('Successfully scraped data');
   } catch (e) {
     print('Error: $e');
@@ -341,13 +342,13 @@ import 'package:pivox/pivox.dart';
 Future<void> main() async {
   // Create a web scraper
   final webScraper = await Pivox.createWebScraper();
-  
+
   try {
     // Fetch HTML content
     final html = await webScraper.fetchHtml(
       url: 'https://example.com/products',
     );
-    
+
     // Define selectors for structured data
     final selectors = {
       'title': '.product-title',
@@ -355,19 +356,19 @@ Future<void> main() async {
       'description': '.product-description',
       'image': '.product-image',
     };
-    
+
     // Define attributes for certain elements
     final attributes = {
       'image': 'src',
     };
-    
+
     // Extract structured data
     final products = webScraper.extractStructuredData(
       html: html,
       selectors: selectors,
       attributes: attributes,
     );
-    
+
     print('Extracted ${products.length} products:');
     products.forEach((product) {
       print('Title: ${product['title']}');
@@ -389,11 +390,13 @@ Future<void> main() async {
 ### Common Issues
 
 1. **Connection Errors**:
+
    - Try using a different proxy
    - Increase the timeout value
    - Check if the URL is correct and accessible
 
 2. **Empty Results**:
+
    - Verify that the CSS selectors are correct
    - Check if the website requires JavaScript
    - Try with a different user agent

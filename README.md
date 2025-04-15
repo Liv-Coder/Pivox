@@ -68,6 +68,7 @@ Easily integrate with popular Dart HTTP clients like http and dio using custom i
 
 Pivox includes powerful web scraping features to handle even the most challenging websites:
 
+- **Headless Browser Integration**: Handle JavaScript-heavy sites and dynamic content with full browser capabilities
 - **Dynamic User Agent Management**: Automatically rotate through modern, realistic user agents to avoid detection
 - **Specialized Site Handlers**: Custom handlers for problematic websites with anti-scraping measures
 - **Structured Data Extraction**: Extract structured data from HTML content using CSS selectors
@@ -455,6 +456,55 @@ data.forEach((item) {
 });
 ```
 
+#### Headless Browser for JavaScript-Heavy Sites
+
+```dart
+import 'package:pivox/pivox.dart';
+
+// Create a headless browser service with default settings
+final browserService = await Pivox.createHeadlessBrowserService();
+
+// Scrape a JavaScript-heavy website
+final result = await browserService.scrapeUrl(
+  'https://example.com/js-heavy-site',
+  selectors: {
+    'title': 'h1',
+    'content': '.dynamic-content',
+    'items': '.item',
+  },
+);
+
+if (result.success) {
+  print('Title: ${result.data?['title']}');
+  print('Content: ${result.data?['content']}');
+
+  final items = result.data?['items'] as List<dynamic>?;
+  print('Found ${items?.length} items');
+
+  // You can also access the full HTML
+  print('HTML length: ${result.html?.length}');
+} else {
+  print('Error: ${result.errorMessage}');
+}
+
+// For sites with lazy loading or infinite scrolling
+final handlers = await Pivox.createSpecializedHeadlessHandlers();
+
+final lazyResult = await handlers.handleLazyLoadingSite(
+  'https://example.com/lazy-loading-page',
+  selectors: {
+    'products': '.product-card',
+    'prices': '.price',
+  },
+  scrollCount: 5,  // Scroll 5 times to load more content
+  scrollDelay: 1000,  // Wait 1 second between scrolls
+);
+
+// Don't forget to dispose when done
+await browserService.dispose();
+await handlers.dispose();
+```
+
 ### Complete Example
 
 For a complete example with a modern UI featuring dark mode support, see the [example](https://github.com/Liv-Coder/Pivox-/tree/main/example) directory.
@@ -476,6 +526,7 @@ Comprehensive documentation is available in the following files:
 
 - [Main Documentation](../doc/documentation.md): Detailed API reference, usage examples, and troubleshooting guide
 - [Web Scraping Documentation](../doc/web_scraping.md): Specialized documentation for web scraping features
+- [Headless Browser Documentation](../doc/headless_browser.md): Guide to using the headless browser integration
 
 The documentation includes:
 

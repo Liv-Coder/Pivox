@@ -17,6 +17,10 @@ import '../../features/proxy_management/presentation/managers/advanced_proxy_man
 import '../../features/proxy_management/presentation/managers/proxy_manager.dart';
 import '../../features/http_integration/http/http_proxy_client.dart';
 import '../../features/http_integration/dio/dio_proxy_interceptor.dart';
+import '../../features/web_scraping/headless_browser/headless_browser_config.dart';
+import '../../features/web_scraping/headless_browser/headless_browser_factory.dart';
+import '../../features/web_scraping/headless_browser/headless_browser_service.dart';
+import '../../features/web_scraping/headless_browser/specialized_headless_handlers.dart';
 
 /// A builder class for simplifying Pivox initialization
 class PivoxBuilder {
@@ -52,6 +56,9 @@ class PivoxBuilder {
 
   /// Whether to use the advanced proxy manager
   bool _useAdvancedProxyManager = false;
+
+  /// Headless browser configuration
+  HeadlessBrowserConfig? _headlessBrowserConfig;
 
   /// Sets the HTTP client to use
   ///
@@ -134,6 +141,14 @@ class PivoxBuilder {
   /// Enables the advanced proxy manager
   PivoxBuilder withAdvancedProxyManager(bool useAdvancedProxyManager) {
     _useAdvancedProxyManager = useAdvancedProxyManager;
+    return this;
+  }
+
+  /// Sets the headless browser configuration
+  ///
+  /// This determines how the headless browser will behave
+  PivoxBuilder withHeadlessBrowserConfig(HeadlessBrowserConfig config) {
+    _headlessBrowserConfig = config;
     return this;
   }
 
@@ -255,6 +270,30 @@ class PivoxBuilder {
       maxRetries: _maxRetries,
     );
   }
+
+  /// Builds a headless browser service
+  ///
+  /// This provides advanced web scraping capabilities
+  Future<HeadlessBrowserService> buildHeadlessBrowserService() async {
+    final proxyManager = await buildProxyManager();
+
+    return HeadlessBrowserFactory.createService(
+      proxyManager: proxyManager,
+      config: _headlessBrowserConfig,
+      useProxies: _useValidatedProxies,
+      rotateProxies: _rotateProxies,
+      maxRetries: _maxRetries,
+    );
+  }
+
+  /// Builds specialized headless handlers for problematic sites
+  ///
+  /// This provides specialized handling for sites with anti-scraping measures
+  Future<SpecializedHeadlessHandlers> buildSpecializedHeadlessHandlers() async {
+    final service = await buildHeadlessBrowserService();
+
+    return HeadlessBrowserFactory.createSpecializedHandlers(service: service);
+  }
 }
 
 /// Factory methods for quick initialization
@@ -277,5 +316,16 @@ class Pivox {
   /// Creates a Dio interceptor for proxy support using default settings
   static Future<ProxyInterceptor> createDioInterceptor() async {
     return PivoxBuilder().buildDioInterceptor();
+  }
+
+  /// Creates a headless browser service with default settings
+  static Future<HeadlessBrowserService> createHeadlessBrowserService() async {
+    return HeadlessBrowserFactory.createService();
+  }
+
+  /// Creates specialized headless handlers with default settings
+  static Future<SpecializedHeadlessHandlers>
+  createSpecializedHeadlessHandlers() async {
+    return HeadlessBrowserFactory.createSpecializedHandlers();
   }
 }

@@ -218,6 +218,9 @@ class Proxy {
   /// Returns the proxy URL in the format 'http(s)://ip:port'
   String get url => '${isHttps ? 'https' : 'http'}://$ip:$port';
 
+  /// Returns the host (IP address) of the proxy
+  String get host => ip;
+
   /// Returns a string representation of the proxy in the format 'ip:port'
   @override
   String toString() => '$ip:$port';
