@@ -6,7 +6,7 @@ repository: https://github.com/Liv-Coder/Pivox-
 issue_tracker: https://github.com/Liv-Coder/Pivox-/issues
 documentation: https://github.com/Liv-Coder/Pivox-/tree/main/doc
 
-publish_to: https://pub.dev/
+# publish_to: none
 
 topics:
   - proxy
