@@ -331,6 +331,9 @@ final userAgentSequence = userAgentManager.getUserAgentSequenceForProblematicSit
 Pivox includes specialized handlers for websites that are particularly difficult to scrape:
 
 ```dart
+// Declare the URL to be checked
+final url = "https://example.com";
+
 // Check if a site is known to be problematic
 final isProblematic = webScraper.reputationTracker.isProblematicSite(url);
 
