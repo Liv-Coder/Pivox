@@ -42,3 +42,13 @@ export 'features/proxy_management/presentation/managers/advanced_proxy_manager_a
 // HTTP integration exports
 export 'features/http_integration/http/http_proxy_client.dart';
 export 'features/http_integration/dio/dio_proxy_interceptor.dart';
+
+// Web scraping exports
+export 'features/web_scraping/web_scraper.dart' hide ScrapingException;
+export 'features/web_scraping/advanced_web_scraper.dart';
+export 'features/web_scraping/rate_limiter.dart';
+export 'features/web_scraping/user_agent_rotator.dart';
+export 'features/web_scraping/cookie_manager.dart';
+export 'features/web_scraping/data_cache_manager.dart';
+export 'features/web_scraping/scraping_job_scheduler.dart';
+export 'features/web_scraping/pivox_scraper.dart';

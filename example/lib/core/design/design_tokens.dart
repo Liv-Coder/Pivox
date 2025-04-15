@@ -89,6 +89,12 @@ class DesignTokens {
   static const double borderRadiusCircular = 999.0;
 
   // Elevation
+  static const double elevationNone = 0.0;
+  static const double elevationSmall = 1.0;
+  static const double elevationMedium = 2.0;
+  static const double elevationLarge = 4.0;
+  static const double elevationXLarge = 8.0;
+
   static const List<BoxShadow> elevationLevel1 = [
     BoxShadow(color: Color(0x0D000000), blurRadius: 4, offset: Offset(0, 2)),
   ];

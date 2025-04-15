@@ -12,6 +12,7 @@ import '../../../../core/widgets/status_card.dart';
 import '../../../advanced_filtering/presentation/screens/advanced_filtering_screen.dart';
 import '../../../analytics/presentation/screens/analytics_screen.dart';
 import '../../../rotation_strategies/presentation/screens/rotation_strategies_screen.dart';
+import '../../../web_scraping/presentation/screens/web_scraping_screen.dart';
 
 /// Home screen for the Pivox example app
 class HomeScreen extends StatefulWidget {
@@ -176,6 +177,21 @@ class _HomeScreenState extends State<HomeScreen> {
                             },
                             icon: Ionicons.swap_horizontal_outline,
                             text: 'Rotation Strategies',
+                            isLoading: false,
+                          ),
+                          const SizedBox(height: DesignTokens.spacingMedium),
+                          ActionButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) => const WebScrapingScreen(),
+                                ),
+                              );
+                            },
+                            icon: Ionicons.code_download_outline,
+                            text: 'Web Scraping',
                             isLoading: false,
                           ),
                           const SizedBox(height: DesignTokens.spacingMedium),
