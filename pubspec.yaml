@@ -1,9 +1,19 @@
 name: pivox
-description: "A free proxy rotator for Dart and Flutter applications."
+description: "A powerful free proxy rotator and web scraping toolkit for Dart and Flutter applications with dynamic proxy sourcing, smart rotation, and advanced web scraping capabilities."
 version: 1.0.0
 homepage: https://github.com/Liv-Coder/Pivox-
 repository: https://github.com/Liv-Coder/Pivox-
 issue_tracker: https://github.com/Liv-Coder/Pivox-/issues
+documentation: https://github.com/Liv-Coder/Pivox-/tree/main/docs
+
+publish_to: https://pub.dev/
+
+topics:
+  - proxy
+  - web-scraping
+  - http
+  - networking
+  - scraping
 
 environment:
   sdk: ^3.7.2
