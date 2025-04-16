@@ -348,12 +348,41 @@ class ProxyRepositoryImpl implements ProxyRepository {
       );
 
       // Validate proxies in parallel
-      final validationResults = await _parallelProcessor.process(
-        items: proxies,
-        processFunction:
-            (proxy) => validateProxy(proxy, testUrl: 'https://www.google.com'),
-        onProgress: onProgress,
-      );
+      List<bool> validationResults;
+      try {
+        validationResults = await _parallelProcessor.process(
+          items: proxies,
+          processFunction:
+              (proxy) =>
+                  validateProxy(proxy, testUrl: 'https://www.google.com'),
+          onProgress: onProgress,
+        );
+      } catch (e) {
+        // If parallel validation fails, fall back to sequential validation
+        validationResults = [];
+        int completed = 0;
+
+        for (final proxy in proxies) {
+          try {
+            final isValid = await validateProxy(
+              proxy,
+              testUrl: 'https://www.google.com',
+            );
+            validationResults.add(isValid);
+          } catch (_) {
+            validationResults.add(false);
+          }
+
+          completed++;
+          onProgress?.call(completed, proxies.length);
+
+          // Break early if we have enough validated proxies
+          if (validationResults.where((result) => result).length >=
+              options.count) {
+            break;
+          }
+        }
+      }
 
       // Track analytics
       if (analyticsService != null) {

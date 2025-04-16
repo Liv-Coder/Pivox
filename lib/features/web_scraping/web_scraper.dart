@@ -157,19 +157,51 @@ class WebScraper {
     bool asText = true,
   }) {
     try {
-      final document = html_parser.parse(html);
-      final elements = document.querySelectorAll(selector);
+      // Log the selector for debugging
+      _logger.info('Extracting data with selector: $selector');
+      if (attribute != null) {
+        _logger.info('Using attribute: $attribute');
+      }
 
-      return elements.map((element) {
-        if (attribute != null) {
-          return element.attributes[attribute] ?? '';
-        } else if (asText) {
-          return element.text.trim();
-        } else {
-          return element.outerHtml;
-        }
-      }).toList();
+      // Parse the HTML
+      final document = html_parser.parse(html);
+
+      // Query the elements
+      final elements = document.querySelectorAll(selector);
+      _logger.info('Found ${elements.length} elements matching selector');
+
+      // If no elements found, log a warning
+      if (elements.isEmpty) {
+        _logger.warning('No elements found matching selector: $selector');
+        return [];
+      }
+
+      // Extract the data from the elements
+      final results =
+          elements.map((element) {
+            if (attribute != null) {
+              final value = element.attributes[attribute] ?? '';
+              if (value.isEmpty) {
+                _logger.warning(
+                  'Attribute "$attribute" not found or empty in element',
+                );
+              }
+              return value;
+            } else if (asText) {
+              final text = element.text.trim();
+              if (text.isEmpty) {
+                _logger.warning('Text content is empty in element');
+              }
+              return text;
+            } else {
+              return element.outerHtml;
+            }
+          }).toList();
+
+      _logger.info('Extracted ${results.length} items');
+      return results;
     } catch (e) {
+      _logger.error('Failed to extract data: $e');
       throw ScrapingException('Failed to extract data: $e');
     }
   }
@@ -185,6 +217,15 @@ class WebScraper {
     Map<String, String?>? attributes,
   }) {
     try {
+      // Log the selectors for debugging
+      _logger.info(
+        'Extracting structured data with selectors: ${selectors.toString()}',
+      );
+      if (attributes != null) {
+        _logger.info('Using attributes: ${attributes.toString()}');
+      }
+
+      // Parse the HTML
       final document = html_parser.parse(html);
       final result = <Map<String, String>>[];
 
@@ -192,10 +233,21 @@ class WebScraper {
       int maxItems = 0;
       selectors.forEach((field, selector) {
         final elements = document.querySelectorAll(selector);
+        _logger.info(
+          'Found ${elements.length} elements for field "$field" with selector "$selector"',
+        );
         if (elements.length > maxItems) {
           maxItems = elements.length;
         }
       });
+
+      _logger.info('Maximum items found: $maxItems');
+
+      // If no items found, log a warning
+      if (maxItems == 0) {
+        _logger.warning('No elements found for any selector');
+        return [];
+      }
 
       // Extract data for each item
       for (int i = 0; i < maxItems; i++) {
@@ -208,11 +260,24 @@ class WebScraper {
             final attribute = attributes?[field];
 
             if (attribute != null) {
-              item[field] = element.attributes[attribute] ?? '';
+              final value = element.attributes[attribute] ?? '';
+              if (value.isEmpty) {
+                _logger.warning(
+                  'Attribute "$attribute" not found or empty for field "$field" in item $i',
+                );
+              }
+              item[field] = value;
             } else {
-              item[field] = element.text.trim();
+              final text = element.text.trim();
+              if (text.isEmpty) {
+                _logger.warning(
+                  'Text content is empty for field "$field" in item $i',
+                );
+              }
+              item[field] = text;
             }
           } else {
+            _logger.warning('No element found for field "$field" in item $i');
             item[field] = '';
           }
         });
@@ -220,8 +285,10 @@ class WebScraper {
         result.add(item);
       }
 
+      _logger.info('Extracted ${result.length} structured data items');
       return result;
     } catch (e) {
+      _logger.error('Failed to extract structured data: $e');
       throw ScrapingException('Failed to extract structured data: $e');
     }
   }
@@ -318,11 +385,26 @@ class WebScraper {
           _logger.success('Request successful');
 
           // Get the response body
-          final body = await response.stream.bytesToString();
-          _logger.success('Received ${body.length} bytes of data');
+          try {
+            final body = await response.stream.bytesToString();
+            _logger.success('Received ${body.length} bytes of data');
 
-          // Return the response body
-          return body;
+            // Check if the body is empty
+            if (body.isEmpty) {
+              _logger.warning('Received empty response body');
+            }
+
+            // Check if the body contains HTML
+            if (!body.contains('<html') && !body.contains('<HTML')) {
+              _logger.warning('Response body does not appear to be HTML');
+            }
+
+            // Return the response body
+            return body;
+          } catch (e) {
+            _logger.error('Error reading response body: $e');
+            throw ScrapingException('Error reading response body: $e');
+          }
         } else {
           // Record failure with the status code
           final errorMessage = 'HTTP error: ${response.statusCode}';

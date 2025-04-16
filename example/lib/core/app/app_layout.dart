@@ -8,7 +8,7 @@ import '../../features/rotation_strategies/presentation/screens/rotation_strateg
 import '../../features/web_scraping/presentation/screens/web_scraping_screen.dart';
 import '../design/design_tokens.dart';
 import '../services/theme_manager.dart';
-import '../widgets/app_drawer.dart';
+import '../widgets/base_screen.dart';
 
 /// Main app layout with bottom navigation
 class AppLayout extends StatefulWidget {
@@ -19,7 +19,8 @@ class AppLayout extends StatefulWidget {
   State<AppLayout> createState() => _AppLayoutState();
 }
 
-class _AppLayoutState extends State<AppLayout> with SingleTickerProviderStateMixin {
+class _AppLayoutState extends State<AppLayout>
+    with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
   final List<Widget> _screens = [
     const HomeScreen(title: 'Pivox Dashboard'),
@@ -27,17 +28,17 @@ class _AppLayoutState extends State<AppLayout> with SingleTickerProviderStateMix
     const WebScrapingScreen(),
     const AnalyticsScreen(),
   ];
-  
+
   final List<String> _titles = [
     'Dashboard',
     'Rotation Strategies',
     'Web Scraping',
     'Analytics',
   ];
-  
+
   late final AnimationController _animationController;
   late final Animation<double> _fadeAnimation;
-  
+
   @override
   void initState() {
     super.initState();
@@ -45,26 +46,26 @@ class _AppLayoutState extends State<AppLayout> with SingleTickerProviderStateMix
       vsync: this,
       duration: DesignTokens.durationMedium,
     );
-    
+
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _animationController,
         curve: DesignTokens.curveStandard,
       ),
     );
-    
+
     _animationController.forward();
   }
-  
+
   @override
   void dispose() {
     _animationController.dispose();
     super.dispose();
   }
-  
+
   void _onTabTapped(int index) {
     if (_currentIndex == index) return;
-    
+
     setState(() {
       _animationController.reset();
       _currentIndex = index;
@@ -76,38 +77,36 @@ class _AppLayoutState extends State<AppLayout> with SingleTickerProviderStateMix
   Widget build(BuildContext context) {
     final themeManager = ThemeManager.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_titles[_currentIndex]),
-        elevation: 0,
-        scrolledUnderElevation: 2,
-        actions: [
-          IconButton(
-            icon: Icon(
-              themeManager.themeMode == ThemeMode.light
-                  ? Ionicons.sunny_outline
-                  : themeManager.themeMode == ThemeMode.dark
-                      ? Ionicons.moon_outline
-                      : Ionicons.contrast_outline,
-            ),
-            onPressed: () {
-              themeManager.toggleTheme();
-            },
-            tooltip: 'Toggle theme',
+
+    return BaseScreen(
+      title: _titles[_currentIndex],
+      isRootScreen: true,
+      showThemeToggle: false, // Disable automatic theme toggle
+      actions: [
+        IconButton(
+          icon: Icon(
+            themeManager.themeMode == ThemeMode.light
+                ? Ionicons.sunny_outline
+                : themeManager.themeMode == ThemeMode.dark
+                ? Ionicons.moon_outline
+                : Ionicons.contrast_outline,
           ),
-        ],
-      ),
-      drawer: const AppDrawer(),
+          onPressed: () {
+            themeManager.toggleTheme();
+          },
+          tooltip: 'Toggle theme',
+        ),
+      ],
       body: FadeTransition(
         opacity: _fadeAnimation,
         child: _screens[_currentIndex],
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          boxShadow: isDark 
-              ? DesignTokens.darkShadowElevation1
-              : DesignTokens.shadowElevation1,
+          boxShadow:
+              isDark
+                  ? DesignTokens.darkShadowElevation1
+                  : DesignTokens.shadowElevation1,
         ),
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
@@ -139,18 +138,21 @@ class _AppLayoutState extends State<AppLayout> with SingleTickerProviderStateMix
           ],
         ),
       ),
-      floatingActionButton: _currentIndex == 0 ? FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AdvancedFilteringScreen(),
-            ),
-          );
-        },
-        tooltip: 'Advanced Filtering',
-        child: const Icon(Ionicons.options_outline),
-      ) : null,
+      floatingActionButton:
+          _currentIndex == 0
+              ? FloatingActionButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AdvancedFilteringScreen(),
+                    ),
+                  );
+                },
+                tooltip: 'Advanced Filtering',
+                child: const Icon(Ionicons.options_outline),
+              )
+              : null,
     );
   }
 }

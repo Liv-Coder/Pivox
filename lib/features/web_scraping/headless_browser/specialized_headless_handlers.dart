@@ -445,8 +445,22 @@ class SpecializedHeadlessHandlers {
     );
   }
 
+  /// Flag to track if the handlers have been disposed
+  bool _isDisposed = false;
+
   /// Disposes the handlers
   Future<void> dispose() async {
-    await _service.dispose();
+    if (_isDisposed) {
+      // Already disposed, do nothing
+      return;
+    }
+
+    _isDisposed = true;
+
+    try {
+      await _service.dispose();
+    } catch (e) {
+      _logger.error('Error disposing specialized handlers: $e');
+    }
   }
 }

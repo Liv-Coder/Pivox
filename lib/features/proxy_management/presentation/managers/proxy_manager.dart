@@ -314,4 +314,46 @@ class ProxyManager {
     );
     return _rotationStrategy.selectProxy(proxies);
   }
+
+  /// Records a successful request with a proxy
+  ///
+  /// [proxy] is the proxy that was used
+  /// [responseTimeMs] is the response time in milliseconds
+  Future<void> recordSuccess(Proxy proxy, [int? responseTimeMs]) async {
+    // Update analytics if enabled
+    if (analyticsService != null) {
+      await analyticsService!.recordRequest(
+        proxy,
+        true,
+        responseTimeMs,
+        'usage',
+      );
+    }
+
+    // Update the proxy's score if it's a ProxyModel
+    if (proxy is ProxyModel) {
+      final updatedProxy = proxy.withSuccessfulRequest(responseTimeMs ?? 0);
+
+      // Update the proxy in the lists
+      _updateProxyInLists(proxy, updatedProxy);
+    }
+  }
+
+  /// Records a failed request with a proxy
+  ///
+  /// [proxy] is the proxy that was used
+  Future<void> recordFailure(Proxy proxy) async {
+    // Update analytics if enabled
+    if (analyticsService != null) {
+      await analyticsService!.recordRequest(proxy, false, null, 'usage');
+    }
+
+    // Update the proxy's score if it's a ProxyModel
+    if (proxy is ProxyModel) {
+      final updatedProxy = proxy.withFailedRequest();
+
+      // Update the proxy in the lists
+      _updateProxyInLists(proxy, updatedProxy);
+    }
+  }
 }

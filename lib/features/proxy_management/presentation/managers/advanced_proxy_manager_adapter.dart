@@ -159,13 +159,13 @@ class AdvancedProxyManagerAdapter implements ProxyManager {
     return _advancedProxyManager.validateProxy(proxy);
   }
 
-  // This is a custom method, not part of the ProxyManager interface
-  void recordSuccess(Proxy proxy) {
+  @override
+  Future<void> recordSuccess(Proxy proxy, [int? responseTimeMs]) async {
     _advancedProxyManager.recordSuccess(proxy);
   }
 
-  // This is a custom method, not part of the ProxyManager interface
-  void recordFailure(Proxy proxy) {
+  @override
+  Future<void> recordFailure(Proxy proxy) async {
     _advancedProxyManager.recordFailure(proxy);
   }
 

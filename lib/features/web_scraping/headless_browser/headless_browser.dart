@@ -4,6 +4,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show Uint8List;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:pivox/features/proxy_management/domain/entities/proxy.dart';
+import 'package:pivox/features/proxy_management/platform/android_proxy_setter.dart';
 import 'package:pivox/features/web_scraping/headless_browser/headless_browser_config.dart';
 import 'package:pivox/features/web_scraping/scraping_logger.dart';
 import 'package:pivox/features/web_scraping/web_scraper.dart'
@@ -38,6 +39,10 @@ class HeadlessBrowser {
 
   /// Initializes the headless browser
   Future<void> initialize() async {
+    if (_isDisposed) {
+      throw ScrapingException('Cannot initialize a disposed browser');
+    }
+
     if (_headlessWebView != null) {
       return;
     }
@@ -105,6 +110,8 @@ class HeadlessBrowser {
 
   /// Sets a proxy for the browser to use
   Future<void> setProxy(Proxy proxy) async {
+    _checkDisposed();
+
     _proxy = proxy;
 
     if (_controller == null) {
@@ -112,6 +119,21 @@ class HeadlessBrowser {
     }
 
     if (Platform.isAndroid) {
+      // Try to set system proxy if available
+      bool systemProxySet = false;
+      try {
+        // Check if Android proxy setter is supported
+        if (AndroidProxySetter.isSupported) {
+          final hasPermission = await AndroidProxySetter.hasProxyPermission();
+          if (hasPermission) {
+            systemProxySet = await AndroidProxySetter.setSystemProxy(proxy);
+          }
+        }
+      } catch (e) {
+        _log('Error setting system proxy: $e', isError: true);
+      }
+
+      // Set WebView settings
       await _controller!.setSettings(
         settings: InAppWebViewSettings(
           // Android uses system proxy settings
@@ -120,12 +142,25 @@ class HeadlessBrowser {
         ),
       );
 
-      _log(
-        'Proxy set to ${proxy.host}:${proxy.port} (Note: Android uses system proxy)',
-      );
+      if (systemProxySet) {
+        _log('System proxy set to ${proxy.host}:${proxy.port}');
+      } else {
+        _log(
+          'Proxy set to ${proxy.host}:${proxy.port} (Note: Android uses system proxy)',
+        );
+      }
     } else if (Platform.isIOS) {
       // iOS doesn't support proxy configuration in WebView
       _log('Proxy settings not supported on iOS WebView', isError: true);
+    }
+  }
+
+  // Android proxy setter is now imported directly
+
+  /// Checks if the browser is disposed and throws an exception if it is
+  void _checkDisposed() {
+    if (_isDisposed) {
+      throw ScrapingException('Browser has been disposed');
     }
   }
 
@@ -135,6 +170,8 @@ class HeadlessBrowser {
     Map<String, String>? headers,
     int? timeoutMillis,
   }) async {
+    _checkDisposed();
+
     if (_controller == null) {
       await initialize();
     }
@@ -176,6 +213,8 @@ class HeadlessBrowser {
 
   /// Gets the HTML content of the current page
   Future<String> getHtml() async {
+    _checkDisposed();
+
     if (_controller == null) {
       throw ScrapingException('Browser not initialized');
     }
@@ -186,6 +225,8 @@ class HeadlessBrowser {
 
   /// Executes JavaScript in the browser and returns the result
   Future<dynamic> executeScript(String script) async {
+    _checkDisposed();
+
     if (_controller == null) {
       throw ScrapingException('Browser not initialized');
     }
@@ -204,6 +245,8 @@ class HeadlessBrowser {
     String selector, {
     int timeoutMillis = 10000,
   }) async {
+    _checkDisposed();
+
     if (_controller == null) {
       throw ScrapingException('Browser not initialized');
     }
@@ -230,6 +273,8 @@ class HeadlessBrowser {
     Map<String, String> selectors, {
     Map<String, String>? attributes,
   }) async {
+    _checkDisposed();
+
     if (_controller == null) {
       throw ScrapingException('Browser not initialized');
     }
@@ -284,6 +329,8 @@ class HeadlessBrowser {
 
   /// Takes a screenshot of the current page
   Future<Uint8List?> takeScreenshot() async {
+    _checkDisposed();
+
     if (_controller == null) {
       throw ScrapingException('Browser not initialized');
     }
@@ -337,12 +384,35 @@ class HeadlessBrowser {
     await InAppWebViewController.clearAllCache();
   }
 
+  /// Flag to track if the browser has been disposed
+  bool _isDisposed = false;
+
   /// Disposes the headless browser
   Future<void> dispose() async {
-    if (_headlessWebView != null) {
-      await _headlessWebView!.dispose();
+    if (_isDisposed) {
+      // Already disposed, do nothing
+      return;
+    }
+
+    _isDisposed = true;
+
+    try {
+      // Cancel any pending page load
+      _pageLoadCompleter?.completeError(
+        ScrapingException('Browser disposed during page load'),
+      );
+
+      // Clear references first
+      final headlessWebView = _headlessWebView;
       _headlessWebView = null;
       _controller = null;
+
+      // Then dispose the web view if it exists
+      if (headlessWebView != null) {
+        await headlessWebView.dispose();
+      }
+    } catch (e) {
+      _log('Error during disposal: $e', isError: true);
     }
   }
 

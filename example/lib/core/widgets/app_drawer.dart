@@ -2,11 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:ionicons/ionicons.dart';
 
 import '../../features/advanced_filtering/presentation/screens/advanced_filtering_screen.dart';
-import '../../features/analytics/presentation/screens/analytics_screen.dart';
 import '../../features/headless_browser/headless_browser_example.dart';
-import '../../features/home/presentation/screens/home_screen.dart';
-import '../../features/rotation_strategies/presentation/screens/rotation_strategies_screen.dart';
-import '../../features/web_scraping/presentation/screens/web_scraping_screen.dart';
+import '../../features/proxy_debug/proxy_debug_screen.dart';
 import '../design/design_tokens.dart';
 import '../services/theme_manager.dart';
 
@@ -144,33 +141,8 @@ class AppDrawer extends StatelessWidget {
             child: ListView(
               padding: EdgeInsets.zero,
               children: [
-                _buildDrawerItem(
-                  context,
-                  'Dashboard',
-                  Ionicons.home_outline,
-                  () => _navigateTo(
-                    context,
-                    const HomeScreen(title: 'Pivox Dashboard'),
-                  ),
-                ),
-                _buildDrawerItem(
-                  context,
-                  'Rotation Strategies',
-                  Ionicons.swap_horizontal_outline,
-                  () => _navigateTo(context, const RotationStrategiesScreen()),
-                ),
-                _buildDrawerItem(
-                  context,
-                  'Web Scraping',
-                  Ionicons.code_download_outline,
-                  () => _navigateTo(context, const WebScrapingScreen()),
-                ),
-                _buildDrawerItem(
-                  context,
-                  'Analytics',
-                  Ionicons.analytics_outline,
-                  () => _navigateTo(context, const AnalyticsScreen()),
-                ),
+                // Main navigation items are in the bottom navigation bar
+                // Only showing additional screens here
                 _buildDrawerItem(
                   context,
                   'Advanced Filtering',
@@ -182,6 +154,12 @@ class AppDrawer extends StatelessWidget {
                   'Headless Browser',
                   Ionicons.browsers_outline,
                   () => _navigateTo(context, const HeadlessBrowserExample()),
+                ),
+                _buildDrawerItem(
+                  context,
+                  'Proxy Debugger',
+                  Ionicons.bug_outline,
+                  () => _navigateTo(context, const ProxyDebugScreen()),
                 ),
                 const Divider(),
                 _buildDrawerItem(
@@ -233,7 +211,8 @@ class AppDrawer extends StatelessWidget {
   }
 
   void _navigateTo(BuildContext context, Widget screen) {
-    Navigator.pushReplacement(
+    // All screens in the drawer now use push for back button support
+    Navigator.push(
       context,
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) => screen,

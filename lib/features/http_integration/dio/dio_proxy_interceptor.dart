@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 
 import '../../../features/proxy_management/domain/entities/proxy.dart';
+import '../../../features/proxy_management/domain/entities/proxy_filter_options.dart';
 import '../../../features/proxy_management/presentation/managers/proxy_manager.dart';
 
 /// Dio interceptor for proxy support
@@ -24,22 +26,37 @@ class ProxyInterceptor extends Interceptor {
   /// Current retry count
   int _retryCount = 0;
 
+  /// Whether to enable debug logging
+  final bool _enableLogging;
+
+  /// Internal logging method
+  void _log(String message) {
+    if (_enableLogging && kDebugMode) {
+      debugPrint('[ProxyInterceptor] $message');
+    }
+  }
+
   /// Creates a new [ProxyInterceptor] with the given parameters
   ProxyInterceptor({
     required ProxyManager proxyManager,
     bool useValidatedProxies = true,
     bool rotateProxies = true,
     int maxRetries = 3,
+    bool enableLogging = true,
   }) : _proxyManager = proxyManager,
        _useValidatedProxies = useValidatedProxies,
        _rotateProxies = rotateProxies,
-       _maxRetries = maxRetries;
+       _maxRetries = maxRetries,
+       _enableLogging = enableLogging;
 
   @override
   void onRequest(
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
+    // Start timing the request
+    options.extra['requestStartTime'] = DateTime.now().millisecondsSinceEpoch;
+
     if (_rotateProxies || _currentProxy == null) {
       try {
         _currentProxy = _proxyManager.getNextProxy(
@@ -49,16 +66,45 @@ class ProxyInterceptor extends Interceptor {
         // If no proxies are available, try to fetch some
         try {
           if (_useValidatedProxies) {
-            await _proxyManager.fetchValidatedProxies();
+            await _proxyManager.fetchValidatedProxies(
+              options: ProxyFilterOptions(count: 20, onlyHttps: true),
+              onProgress: (completed, total) {
+                _log('Validated $completed of $total proxies');
+              },
+            );
           } else {
-            await _proxyManager.fetchProxies();
+            await _proxyManager.fetchProxies(
+              options: ProxyFilterOptions(count: 20),
+            );
           }
 
-          _currentProxy = _proxyManager.getNextProxy(
-            validated: _useValidatedProxies,
-          );
-        } catch (_) {
-          // If still no proxies, proceed without a proxy
+          try {
+            _currentProxy = _proxyManager.getNextProxy(
+              validated: _useValidatedProxies,
+            );
+          } catch (e) {
+            // If still no validated proxies, try unvalidated as fallback
+            if (_useValidatedProxies) {
+              _log('No validated proxies available, trying unvalidated...');
+              try {
+                _currentProxy = _proxyManager.getNextProxy(validated: false);
+                _log('Using unvalidated proxy as fallback');
+              } catch (_) {
+                // If still no proxies, proceed without a proxy
+                _log('No proxies available at all, proceeding without proxy');
+                handler.next(options);
+                return;
+              }
+            } else {
+              // If still no proxies, proceed without a proxy
+              _log('No proxies available at all, proceeding without proxy');
+              handler.next(options);
+              return;
+            }
+          }
+        } catch (fetchError) {
+          // If fetching fails, proceed without a proxy
+          _log('Error fetching proxies: $fetchError');
           handler.next(options);
           return;
         }
@@ -72,6 +118,9 @@ class ProxyInterceptor extends Interceptor {
     final proxyUrl = '${proxy.ip}:${proxy.port}';
     options.headers['proxy'] = proxyUrl;
     options.extra['proxy'] = proxyUrl;
+
+    // Store the proxy for later use in response/error handlers
+    options.extra['currentProxy'] = proxy;
 
     // Add authentication if needed
     if (proxy.isAuthenticated) {
@@ -88,7 +137,34 @@ class ProxyInterceptor extends Interceptor {
   }
 
   @override
+  void onResponse(Response response, ResponseInterceptorHandler handler) async {
+    // Calculate response time if not already set
+    int responseTime = 0;
+    if (response.extra.containsKey('responseTime')) {
+      responseTime = response.extra['responseTime'] as int? ?? 0;
+    } else if (response.extra.containsKey('requestStartTime')) {
+      final startTime = response.extra['requestStartTime'] as int;
+      final endTime = DateTime.now().millisecondsSinceEpoch;
+      responseTime = endTime - startTime;
+      response.extra['responseTime'] = responseTime;
+    }
+
+    // Record successful proxy usage
+    if (_currentProxy != null) {
+      _log('Proxy request successful, response time: ${responseTime}ms');
+      await _proxyManager.recordSuccess(_currentProxy!, responseTime);
+    }
+
+    handler.next(response);
+  }
+
+  @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
+    // Record proxy failure if it's a proxy-related error
+    if (_isProxyError(err) && _currentProxy != null) {
+      await _proxyManager.recordFailure(_currentProxy!);
+    }
+
     // If the error is related to the proxy and we haven't exceeded max retries
     if (_isProxyError(err) && _retryCount < _maxRetries) {
       _retryCount++;
@@ -107,12 +183,26 @@ class ProxyInterceptor extends Interceptor {
 
         // Create a new request
         final dio = Dio();
-        final response = await dio.fetch(options);
+        final stopwatch = Stopwatch()..start();
 
-        handler.resolve(response);
-        return;
+        try {
+          final response = await dio.fetch(options);
+          stopwatch.stop();
+
+          // Add response time to the response
+          response.extra['responseTime'] = stopwatch.elapsedMilliseconds;
+
+          handler.resolve(response);
+          return;
+        } catch (e) {
+          // If retry fails, record the failure
+          if (_currentProxy != null) {
+            await _proxyManager.recordFailure(_currentProxy!);
+          }
+          // Proceed with the original error
+        }
       } catch (e) {
-        // If retry fails, proceed with the original error
+        // If getting a new proxy fails, proceed with the original error
       }
     }
 

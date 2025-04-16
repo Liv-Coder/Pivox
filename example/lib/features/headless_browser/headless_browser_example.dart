@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:pivox/pivox.dart';
 
+import '../../core/widgets/base_screen.dart';
+
 class HeadlessBrowserExample extends StatefulWidget {
   const HeadlessBrowserExample({super.key});
 
@@ -11,14 +13,14 @@ class HeadlessBrowserExample extends StatefulWidget {
 class _HeadlessBrowserExampleState extends State<HeadlessBrowserExample> {
   final _urlController = TextEditingController();
   final _selectorController = TextEditingController();
-  
+
   HeadlessBrowserService? _browserService;
   SpecializedHeadlessHandlers? _handlers;
-  
+
   bool _isLoading = false;
   String _resultText = '';
   Map<String, dynamic>? _resultData;
-  
+
   @override
   void initState() {
     super.initState();
@@ -26,17 +28,17 @@ class _HeadlessBrowserExampleState extends State<HeadlessBrowserExample> {
     _selectorController.text = '.quote';
     _initializeServices();
   }
-  
+
   Future<void> _initializeServices() async {
     setState(() {
       _isLoading = true;
       _resultText = 'Initializing headless browser...';
     });
-    
+
     try {
       // Create a proxy manager
       final proxyManager = await Pivox.createProxyManager();
-      
+
       // Create a headless browser service with proxy support
       _browserService = await HeadlessBrowserFactory.createService(
         proxyManager: proxyManager,
@@ -46,12 +48,12 @@ class _HeadlessBrowserExampleState extends State<HeadlessBrowserExample> {
           loggingEnabled: true,
         ),
       );
-      
+
       // Create specialized handlers
       _handlers = await HeadlessBrowserFactory.createSpecializedHandlers(
         service: _browserService,
       );
-      
+
       setState(() {
         _isLoading = false;
         _resultText = 'Headless browser initialized. Ready to scrape.';
@@ -63,7 +65,7 @@ class _HeadlessBrowserExampleState extends State<HeadlessBrowserExample> {
       });
     }
   }
-  
+
   Future<void> _scrapeWithHeadlessBrowser() async {
     if (_browserService == null) {
       setState(() {
@@ -71,7 +73,7 @@ class _HeadlessBrowserExampleState extends State<HeadlessBrowserExample> {
       });
       return;
     }
-    
+
     final url = _urlController.text.trim();
     if (url.isEmpty) {
       setState(() {
@@ -79,21 +81,19 @@ class _HeadlessBrowserExampleState extends State<HeadlessBrowserExample> {
       });
       return;
     }
-    
+
     setState(() {
       _isLoading = true;
       _resultText = 'Scraping $url...';
       _resultData = null;
     });
-    
+
     try {
       final result = await _browserService!.scrapeUrl(
         url,
-        selectors: {
-          'quotes': _selectorController.text.trim(),
-        },
+        selectors: {'quotes': _selectorController.text.trim()},
       );
-      
+
       if (result.success) {
         setState(() {
           _isLoading = false;
@@ -113,7 +113,7 @@ class _HeadlessBrowserExampleState extends State<HeadlessBrowserExample> {
       });
     }
   }
-  
+
   Future<void> _scrapeJavaScriptSite() async {
     if (_handlers == null) {
       setState(() {
@@ -121,7 +121,7 @@ class _HeadlessBrowserExampleState extends State<HeadlessBrowserExample> {
       });
       return;
     }
-    
+
     final url = _urlController.text.trim();
     if (url.isEmpty) {
       setState(() {
@@ -129,21 +129,19 @@ class _HeadlessBrowserExampleState extends State<HeadlessBrowserExample> {
       });
       return;
     }
-    
+
     setState(() {
       _isLoading = true;
       _resultText = 'Scraping JavaScript site $url...';
       _resultData = null;
     });
-    
+
     try {
       final result = await _handlers!.handleJavaScriptSite(
         url,
-        selectors: {
-          'quotes': _selectorController.text.trim(),
-        },
+        selectors: {'quotes': _selectorController.text.trim()},
       );
-      
+
       if (result.success) {
         setState(() {
           _isLoading = false;
@@ -153,7 +151,8 @@ class _HeadlessBrowserExampleState extends State<HeadlessBrowserExample> {
       } else {
         setState(() {
           _isLoading = false;
-          _resultText = 'Error scraping JavaScript site $url: ${result.errorMessage}';
+          _resultText =
+              'Error scraping JavaScript site $url: ${result.errorMessage}';
         });
       }
     } catch (e) {
@@ -163,7 +162,7 @@ class _HeadlessBrowserExampleState extends State<HeadlessBrowserExample> {
       });
     }
   }
-  
+
   Future<void> _scrapeLazyLoadingSite() async {
     if (_handlers == null) {
       setState(() {
@@ -171,7 +170,7 @@ class _HeadlessBrowserExampleState extends State<HeadlessBrowserExample> {
       });
       return;
     }
-    
+
     final url = _urlController.text.trim();
     if (url.isEmpty) {
       setState(() {
@@ -179,23 +178,21 @@ class _HeadlessBrowserExampleState extends State<HeadlessBrowserExample> {
       });
       return;
     }
-    
+
     setState(() {
       _isLoading = true;
       _resultText = 'Scraping lazy loading site $url...';
       _resultData = null;
     });
-    
+
     try {
       final result = await _handlers!.handleLazyLoadingSite(
         url,
-        selectors: {
-          'items': _selectorController.text.trim(),
-        },
+        selectors: {'items': _selectorController.text.trim()},
         scrollCount: 5,
         scrollDelay: 1000,
       );
-      
+
       if (result.success) {
         setState(() {
           _isLoading = false;
@@ -205,7 +202,8 @@ class _HeadlessBrowserExampleState extends State<HeadlessBrowserExample> {
       } else {
         setState(() {
           _isLoading = false;
-          _resultText = 'Error scraping lazy loading site $url: ${result.errorMessage}';
+          _resultText =
+              'Error scraping lazy loading site $url: ${result.errorMessage}';
         });
       }
     } catch (e) {
@@ -215,7 +213,7 @@ class _HeadlessBrowserExampleState extends State<HeadlessBrowserExample> {
       });
     }
   }
-  
+
   @override
   void dispose() {
     _urlController.dispose();
@@ -224,13 +222,13 @@ class _HeadlessBrowserExampleState extends State<HeadlessBrowserExample> {
     _handlers?.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Headless Browser Example'),
-      ),
+    return BaseScreen(
+      title: 'Headless Browser Example',
+      showBackButton: true,
+      showThemeToggle: true,
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -292,10 +290,7 @@ class _HeadlessBrowserExampleState extends State<HeadlessBrowserExample> {
             const SizedBox(height: 16),
             const Text(
               'Results:',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Expanded(
@@ -305,25 +300,26 @@ class _HeadlessBrowserExampleState extends State<HeadlessBrowserExample> {
                   border: Border.all(color: Colors.grey),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : SingleChildScrollView(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(_resultText),
-                            if (_resultData != null) ...[
-                              const SizedBox(height: 16),
-                              const Text(
-                                'Extracted Data:',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 8),
-                              ..._buildResultDataWidgets(),
+                child:
+                    _isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(_resultText),
+                              if (_resultData != null) ...[
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'Extracted Data:',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 8),
+                                ..._buildResultDataWidgets(),
+                              ],
                             ],
-                          ],
+                          ),
                         ),
-                      ),
               ),
             ),
           ],
@@ -331,10 +327,10 @@ class _HeadlessBrowserExampleState extends State<HeadlessBrowserExample> {
       ),
     );
   }
-  
+
   List<Widget> _buildResultDataWidgets() {
     final widgets = <Widget>[];
-    
+
     _resultData?.forEach((key, value) {
       widgets.add(
         Padding(
@@ -348,10 +344,14 @@ class _HeadlessBrowserExampleState extends State<HeadlessBrowserExample> {
               ),
               if (value is List) ...[
                 Text('Found ${value.length} items'),
-                ...value.take(10).map((item) => Padding(
-                  padding: const EdgeInsets.only(left: 16.0, top: 4.0),
-                  child: Text('• $item'),
-                )),
+                ...value
+                    .take(10)
+                    .map(
+                      (item) => Padding(
+                        padding: const EdgeInsets.only(left: 16.0, top: 4.0),
+                        child: Text('• $item'),
+                      ),
+                    ),
                 if (value.length > 10)
                   Padding(
                     padding: const EdgeInsets.only(left: 16.0, top: 4.0),
@@ -364,7 +364,7 @@ class _HeadlessBrowserExampleState extends State<HeadlessBrowserExample> {
         ),
       );
     });
-    
+
     return widgets;
   }
 }

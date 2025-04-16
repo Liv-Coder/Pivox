@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kDebugMode, Uint8List;
 import 'package:pivox/features/proxy_management/domain/entities/proxy.dart';
+import 'package:pivox/features/proxy_management/domain/entities/proxy_filter_options.dart';
 import 'package:pivox/features/proxy_management/presentation/managers/proxy_manager.dart';
 import 'package:pivox/features/web_scraping/advanced_web_scraper.dart';
 import 'package:pivox/features/web_scraping/dynamic_user_agent_manager.dart';
@@ -81,17 +82,51 @@ class HeadlessBrowserService {
       try {
         // Set up proxy if needed
         if (_useProxies && useProxy) {
-          if (specificProxy != null) {
-            currentProxy = specificProxy;
-          } else if (_rotateProxies || currentProxy == null) {
-            currentProxy = _proxyManager?.getNextProxy(validated: true);
-          }
+          try {
+            if (specificProxy != null) {
+              currentProxy = specificProxy;
+            } else if (_rotateProxies || currentProxy == null) {
+              try {
+                currentProxy = _proxyManager?.getNextProxy(validated: true);
+              } catch (e) {
+                _logger.error('Error getting validated proxy: $e');
 
-          if (currentProxy != null) {
-            await _browser.setProxy(currentProxy);
-            _logger.info(
-              'Using proxy: ${currentProxy.host}:${currentProxy.port}',
-            );
+                // Try to fetch and validate new proxies
+                _logger.info('Attempting to fetch and validate new proxies...');
+                try {
+                  await _proxyManager?.fetchValidatedProxies(
+                    options: ProxyFilterOptions(count: 10, onlyHttps: true),
+                  );
+                  currentProxy = _proxyManager?.getNextProxy(validated: true);
+                } catch (e) {
+                  _logger.error('Failed to fetch validated proxies: $e');
+
+                  // Try with unvalidated proxies as a fallback
+                  _logger.info('Trying with unvalidated proxies...');
+                  try {
+                    currentProxy = _proxyManager?.getNextProxy(
+                      validated: false,
+                    );
+                    _logger.warning('Using unvalidated proxy as fallback');
+                  } catch (e) {
+                    _logger.error('No proxies available at all: $e');
+                    // Continue without proxy
+                  }
+                }
+              }
+            }
+
+            if (currentProxy != null) {
+              await _browser.setProxy(currentProxy);
+              _logger.info(
+                'Using proxy: ${currentProxy.host}:${currentProxy.port}',
+              );
+            } else {
+              _logger.warning('No proxy available, proceeding without proxy');
+            }
+          } catch (e) {
+            _logger.error('Error setting up proxy: $e');
+            // Continue without proxy
           }
         }
 
@@ -228,8 +263,22 @@ class HeadlessBrowserService {
     await _browser.clearCache();
   }
 
+  /// Flag to track if the service has been disposed
+  bool _isDisposed = false;
+
   /// Disposes the service
   Future<void> dispose() async {
-    await _browser.dispose();
+    if (_isDisposed) {
+      // Already disposed, do nothing
+      return;
+    }
+
+    _isDisposed = true;
+
+    try {
+      await _browser.dispose();
+    } catch (e) {
+      _logger.error('Error disposing browser service: $e');
+    }
   }
 }
