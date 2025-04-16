@@ -1,6 +1,23 @@
 # Changelog
 
-## 1.0.0 - Initial Release (2023-06-15)
+## 1.0.1 - Bug Fixes and Improvements (2025-05-10)
+
+### Bug Fixes
+
+- **Fixed Proxy Validation**: Resolved issues with parallel proxy validation using isolates
+- **Enhanced Error Handling**: Improved error handling throughout the web scraping process
+- **Robust Data Extraction**: Added safeguards against empty or malformed data during extraction
+- **Improved ProxyHttpClient**: Enhanced error handling and fallback mechanisms in the HTTP client
+- **UI Improvements**: Fixed issues with displaying scraped data in the example app
+
+### Improvements
+
+- **Enhanced Logging**: Added detailed logging throughout the scraping process
+- **Better Fallback Mechanisms**: Implemented fallbacks when proxies or data extraction fails
+- **Structured Data Handling**: Improved handling of structured data extraction
+- **Performance Optimizations**: Optimized proxy validation and rotation
+
+## 1.0.0 - Initial Release (2025-04-15)
 
 ### Core Features
 
