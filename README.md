@@ -94,7 +94,7 @@ Or install it from the command line:
 flutter pub add pivox
 ```
 
-## What's New in Version 1.2.0
+## What's New in Version 1.1.0
 
 ### Performance and Reliability Improvements
 
