@@ -85,13 +85,134 @@ Add Pivox to your `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  pivox: ^1.0.0
+  pivox: ^1.1.0
 ```
 
 Or install it from the command line:
 
 ```bash
 flutter pub add pivox
+```
+
+## What's New in Version 1.1.0
+
+### Performance and Reliability Improvements
+
+#### Streaming HTML Parser
+
+Process HTML incrementally to reduce memory usage for large documents:
+
+```dart
+import 'package:pivox/pivox.dart';
+
+// Create a web scraper with streaming capabilities
+final proxyManager = await Pivox.createProxyManager();
+final webScraper = await Pivox.createWebScraper(proxyManager: proxyManager);
+
+// Extract data using streaming for memory efficiency
+final dataStream = webScraper.extractDataStream(
+  url: 'https://example.com/large-page',
+  selector: '.item',
+  chunkSize: 512 * 1024, // Process in 512KB chunks
+);
+
+// Process data as it arrives
+await for (final item in dataStream) {
+  print('Found item: $item');
+}
+```
+
+#### Concurrent Web Scraping
+
+Process multiple URLs simultaneously with priority-based scheduling:
+
+```dart
+import 'package:pivox/pivox.dart';
+
+// Create a concurrent web scraper
+final proxyManager = await Pivox.createProxyManager();
+final concurrentScraper = await Pivox.createConcurrentWebScraper(
+  proxyManager: proxyManager,
+  maxConcurrentTasks: 10,
+);
+
+// Scrape multiple URLs concurrently
+final results = await concurrentScraper.fetchHtmlBatch(
+  urls: [
+    'https://example.com/page1',
+    'https://example.com/page2',
+    'https://example.com/page3',
+  ],
+  onProgress: (completed, total, url) {
+    print('Completed $completed of $total: $url');
+  },
+);
+
+// Extract data from multiple URLs with different priorities
+final highPriorityData = concurrentScraper.extractData(
+  url: 'https://example.com/important',
+  selector: '.data',
+  priority: 10, // Higher priority
+);
+
+final lowPriorityData = concurrentScraper.extractData(
+  url: 'https://example.com/less-important',
+  selector: '.data',
+  priority: 1, // Lower priority
+);
+
+// High priority task will be processed first
+final results = await Future.wait([highPriorityData, lowPriorityData]);
+```
+
+#### Memory-Efficient Parsing
+
+Process large HTML documents without loading them entirely into memory:
+
+```dart
+import 'package:pivox/pivox.dart';
+
+// Create an advanced web scraper
+final proxyManager = await Pivox.createProxyManager();
+final advancedScraper = await Pivox.createAdvancedWebScraper(
+  proxyManager: proxyManager,
+);
+
+// Fetch a large HTML document
+final html = await advancedScraper.fetchHtml(
+  url: 'https://example.com/very-large-page',
+);
+
+// Extract data using memory-efficient parsing
+final data = advancedScraper.extractDataEfficient(
+  html: html,
+  selector: '.item',
+  chunkSize: 1024 * 1024, // Process in 1MB chunks
+);
+
+print('Extracted ${data.length} items');
+```
+
+#### Factory Methods
+
+Simplified component creation with the new `PivoxFactory` class:
+
+```dart
+import 'package:pivox/pivox.dart';
+
+// Create components with factory methods
+final proxyManager = await Pivox.createProxyManager();
+final webScraper = await Pivox.createWebScraper(proxyManager: proxyManager);
+final advancedScraper = await Pivox.createAdvancedWebScraper(proxyManager: proxyManager);
+final concurrentScraper = await Pivox.createConcurrentWebScraper(proxyManager: proxyManager);
+
+// Or use the PivoxFactory directly for more control
+final customScraper = PivoxFactory.createWebScraper(
+  proxyManager: proxyManager,
+  defaultTimeout: 60000,
+  maxRetries: 5,
+  respectRobotsTxt: true,
+);
 ```
 
 ## Usage

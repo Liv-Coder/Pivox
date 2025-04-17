@@ -1,6 +1,28 @@
 # Changelog
 
-## 1.0.1 - Bug Fixes and Improvements (2025-05-10)
+## 1.1.0 - Performance and Reliability Improvements (2025-05-10)
+
+### New Features
+
+- **Streaming HTML Parser**: Process HTML incrementally to reduce memory usage for large documents
+- **Concurrency Control**: New `ScrapingTaskQueue` and `ConcurrentWebScraper` for parallel processing
+- **Memory-Efficient Parsing**: Chunking strategies for handling large HTML documents
+- **Factory Methods**: New `PivoxFactory` class with simplified component creation
+- **Standardized Error Handling**: Comprehensive `ScrapingException` hierarchy for better error management
+
+### Performance Improvements
+
+- **Reduced Memory Footprint**: Process large HTML documents without loading entirely into memory
+- **Parallel Processing**: Extract data from multiple URLs simultaneously
+- **Priority-Based Scheduling**: Prioritize important requests in the scraping queue
+- **Batch Processing**: Efficient bulk scraping with progress tracking
+- **Improved Resource Management**: Better control over CPU and memory usage during intensive operations
+
+### Ethical Improvements
+
+- **Robots.txt Compliance**: Enhanced support for respecting robots.txt directives
+- **Rate Limiting**: Domain-specific rate limiting with exponential backoff
+- **Respectful Crawling**: Automatic crawl delays based on site reputation
 
 ### Bug Fixes
 
