@@ -7,8 +7,17 @@ import '../../../core/utils/logger.dart';
 import '../proxy_management/presentation/managers/proxy_manager.dart';
 import '../http_integration/http/http_proxy_client.dart';
 import 'adaptive_scraping_strategy.dart';
+import 'content/content_detector.dart';
 import 'content/content_validator.dart';
+import 'content/structured_data_extractor.dart';
 import 'content/structured_data_validator.dart';
+import 'content/text_extractor.dart';
+import 'headless_browser/headless_browser.dart';
+import 'lazy_loading/lazy_load_detector.dart';
+import 'lazy_loading/lazy_load_handler.dart';
+import 'pagination/pagination_handler.dart';
+import 'rate_limiting/rate_limiter.dart';
+import 'rate_limiting/request_queue.dart';
 import 'robots_txt_handler.dart';
 import 'scraping_exception.dart';
 import 'scraping_logger.dart';
@@ -68,11 +77,56 @@ class WebScraper {
   /// The selector validator
   final SelectorValidator _selectorValidator;
 
+  /// The rate limiter for controlling request rates
+  final RateLimiter _rateLimiter;
+
+  /// The request queue for managing concurrent requests
+  final RequestQueue _requestQueue;
+
+  /// The structured data extractor
+  final StructuredDataExtractor _structuredDataExtractor;
+
+  /// The content detector
+  final ContentDetector _contentDetector;
+
+  /// The text extractor
+  final TextExtractor _textExtractor;
+
+  /// The headless browser
+  final HeadlessBrowser _headlessBrowser;
+
+  /// The lazy load handler
+  final LazyLoadHandler _lazyLoadHandler;
+
+  /// The pagination handler
+  late final PaginationHandler _paginationHandler;
+
   /// Gets the site reputation tracker
   SiteReputationTracker get reputationTracker => _reputationTracker;
 
   /// Gets the scraping logger
   ScrapingLogger get logger => _logger;
+
+  /// Gets the rate limiter
+  RateLimiter get rateLimiter => _rateLimiter;
+
+  /// Gets the request queue
+  RequestQueue get requestQueue => _requestQueue;
+
+  /// Gets the content detector
+  ContentDetector get contentDetector => _contentDetector;
+
+  /// Gets the text extractor
+  TextExtractor get textExtractor => _textExtractor;
+
+  /// Gets the headless browser
+  HeadlessBrowser get headlessBrowser => _headlessBrowser;
+
+  /// Gets the lazy load handler
+  LazyLoadHandler get lazyLoadHandler => _lazyLoadHandler;
+
+  /// Gets the pagination handler
+  PaginationHandler get paginationHandler => _paginationHandler;
 
   /// Creates a new [WebScraper] with the given parameters
   WebScraper({
@@ -90,6 +144,15 @@ class WebScraper {
     ContentValidator? contentValidator,
     StructuredDataValidator? structuredDataValidator,
     SelectorValidator? selectorValidator,
+    RateLimiter? rateLimiter,
+    RequestQueue? requestQueue,
+    StructuredDataExtractor? structuredDataExtractor,
+    ContentDetector? contentDetector,
+    TextExtractor? textExtractor,
+    HeadlessBrowser? headlessBrowser,
+    LazyLoadDetector? lazyLoadDetector,
+    LazyLoadHandler? lazyLoadHandler,
+    PaginationHandler? paginationHandler,
     bool respectRobotsTxt = true,
   }) : _httpClient =
            httpClient ??
@@ -126,7 +189,34 @@ class WebScraper {
            structuredDataValidator ??
            StructuredDataValidator(logger: Logger('WebScraper')),
        _selectorValidator =
-           selectorValidator ?? SelectorValidator(logger: Logger('WebScraper'));
+           selectorValidator ?? SelectorValidator(logger: Logger('WebScraper')),
+       _rateLimiter = rateLimiter ?? RateLimiter(logger: Logger('WebScraper')),
+       _requestQueue =
+           requestQueue ??
+           RequestQueue(
+             rateLimiter:
+                 rateLimiter ?? RateLimiter(logger: Logger('WebScraper')),
+             logger: Logger('WebScraper'),
+           ),
+       _structuredDataExtractor =
+           structuredDataExtractor ??
+           StructuredDataExtractor(logger: Logger('WebScraper')),
+       _contentDetector =
+           contentDetector ?? ContentDetector(logger: Logger('WebScraper')),
+       _textExtractor =
+           textExtractor ?? TextExtractor(logger: Logger('WebScraper')),
+       _headlessBrowser = headlessBrowser ?? HeadlessBrowser(),
+       _lazyLoadHandler =
+           lazyLoadHandler ??
+           LazyLoadHandler(
+             headlessBrowser: headlessBrowser ?? HeadlessBrowser(),
+             logger: Logger('WebScraper'),
+           ) {
+    // Initialize pagination handler after construction
+    _paginationHandler =
+        paginationHandler ??
+        PaginationHandler(webScraper: this, logger: Logger('WebScraper'));
+  }
 
   /// Fetches HTML content from the given URL
   ///
@@ -516,6 +606,162 @@ class WebScraper {
         isRetryable: false,
       );
     }
+  }
+
+  /// Extracts structured data from HTML using JSON-LD, Microdata, RDFa, etc.
+  ///
+  /// [html] is the HTML content to parse
+  /// [type] is the type of structured data to extract (default: all)
+  List<StructuredDataExtractionResult> extractStructuredMetadata({
+    required String html,
+    StructuredDataType? type,
+  }) {
+    try {
+      if (type != null) {
+        return _structuredDataExtractor.extractByType(html, type);
+      } else {
+        return _structuredDataExtractor.extractAll(html);
+      }
+    } catch (e) {
+      _logger.error('Failed to extract structured metadata: $e');
+      return [];
+    }
+  }
+
+  /// Extracts product information from HTML
+  ///
+  /// [html] is the HTML content to parse
+  List<Map<String, dynamic>> extractProductInfo(String html) {
+    try {
+      return _structuredDataExtractor.extractProducts(html);
+    } catch (e) {
+      _logger.error('Failed to extract product information: $e');
+      return [];
+    }
+  }
+
+  /// Extracts article information from HTML
+  ///
+  /// [html] is the HTML content to parse
+  List<Map<String, dynamic>> extractArticleInfo(String html) {
+    try {
+      return _structuredDataExtractor.extractArticles(html);
+    } catch (e) {
+      _logger.error('Failed to extract article information: $e');
+      return [];
+    }
+  }
+
+  /// Extracts data of a specific schema type from HTML
+  ///
+  /// [html] is the HTML content to parse
+  /// [schemaType] is the schema.org type to extract (e.g., 'Product', 'Article')
+  /// [preferredTypes] is the order of structured data types to try
+  Map<String, dynamic>? extractSchemaType({
+    required String html,
+    required String schemaType,
+    List<StructuredDataType> preferredTypes = const [
+      StructuredDataType.jsonLd,
+      StructuredDataType.microdata,
+      StructuredDataType.rdfa,
+    ],
+  }) {
+    try {
+      return _structuredDataExtractor.extractAsSchema(
+        html,
+        schemaType,
+        preferredTypes: preferredTypes,
+      );
+    } catch (e) {
+      _logger.error('Failed to extract schema type $schemaType: $e');
+      return null;
+    }
+  }
+
+  /// Fetches HTML content with rate limiting
+  ///
+  /// [url] is the URL to fetch
+  /// [headers] are additional headers to send with the request
+  /// [timeout] is the timeout for the request in milliseconds
+  /// [retries] is the number of retry attempts
+  /// [priority] is the priority of the request
+  /// [ignoreRobotsTxt] whether to ignore robots.txt rules (default: false)
+  Future<String> fetchHtmlWithRateLimiting({
+    required String url,
+    Map<String, String>? headers,
+    int? timeout,
+    int? retries,
+    RequestPriority priority = RequestPriority.normal,
+    bool ignoreRobotsTxt = false,
+  }) async {
+    final uri = Uri.parse(url);
+    final domain = uri.host;
+
+    return _requestQueue.enqueue(
+      domain: domain,
+      priority: priority,
+      execute:
+          () => fetchHtml(
+            url: url,
+            headers: headers,
+            timeout: timeout,
+            retries: retries,
+            ignoreRobotsTxt: ignoreRobotsTxt,
+          ),
+    );
+  }
+
+  /// Fetches JSON content with rate limiting
+  ///
+  /// [url] is the URL to fetch
+  /// [headers] are additional headers to send with the request
+  /// [timeout] is the timeout for the request in milliseconds
+  /// [retries] is the number of retry attempts
+  /// [priority] is the priority of the request
+  /// [ignoreRobotsTxt] whether to ignore robots.txt rules (default: false)
+  Future<Map<String, dynamic>> fetchJsonWithRateLimiting({
+    required String url,
+    Map<String, String>? headers,
+    int? timeout,
+    int? retries,
+    RequestPriority priority = RequestPriority.normal,
+    bool ignoreRobotsTxt = false,
+  }) async {
+    final uri = Uri.parse(url);
+    final domain = uri.host;
+
+    return _requestQueue.enqueue(
+      domain: domain,
+      priority: priority,
+      execute:
+          () => fetchJson(
+            url: url,
+            headers: headers,
+            timeout: timeout,
+            retries: retries,
+            ignoreRobotsTxt: ignoreRobotsTxt,
+          ),
+    );
+  }
+
+  /// Sets the rate limit for a specific domain
+  ///
+  /// [domain] is the domain to set the rate limit for
+  /// [requestsPerMinute] is the maximum number of requests per minute
+  /// [requestsPerHour] is the maximum number of requests per hour
+  /// [requestsPerDay] is the maximum number of requests per day
+  void setDomainRateLimit({
+    required String domain,
+    int? requestsPerMinute,
+    int? requestsPerHour,
+    int? requestsPerDay,
+  }) {
+    _rateLimiter.setDomainLimit(
+      domain,
+      requestsPerMinute: requestsPerMinute,
+      requestsPerHour: requestsPerHour,
+      requestsPerDay: requestsPerDay,
+    );
   }
 
   /// Fetches a URL with retry logic

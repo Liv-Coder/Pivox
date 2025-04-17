@@ -31,6 +31,9 @@ dependencies:
   data_cache_x: ^0.1.5
   get_it: ^8.0.3
   flutter_inappwebview: ^6.1.5
+  crypto: ^3.0.3
+  uuid: ^4.3.3
+  collection: ^1.18.0
 
 dev_dependencies:
   flutter_test:

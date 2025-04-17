@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/design/design_tokens.dart';
 import '../../../../core/services/service_locator.dart';
+import '../../../../ui_example.dart' as ui_example;
 import '../controllers/home_controller.dart';
 import '../widgets/actions_section.dart';
 import '../widgets/dashboard_section.dart';
@@ -152,6 +153,43 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   }
                 },
+              ),
+            ),
+
+            const SizedBox(height: DesignTokens.spacingLarge),
+
+            // UI Example
+            DashboardSection(
+              title: 'UI Examples',
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(DesignTokens.spacingMedium),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Try our new UI components for web scraping',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: DesignTokens.spacingSmall),
+                      const Text(
+                        'Explore our new UI components for web scraping, including a scraping progress dashboard, visual status indicators, and interactive selector tools.',
+                      ),
+                      const SizedBox(height: DesignTokens.spacingMedium),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder:
+                                  (context) => const ui_example.UIExample(),
+                            ),
+                          );
+                        },
+                        child: const Text('Launch UI Example'),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
 

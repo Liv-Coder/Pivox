@@ -1,5 +1,11 @@
 /// Logger levels
 enum LogLevel {
+  /// Trace level for very detailed information
+  trace,
+
+  /// Fine level for detailed information
+  fine,
+
   /// Debug level for detailed information
   debug,
 
@@ -37,6 +43,16 @@ class Logger {
     this.includeTimestamps = true,
     this.includeLoggerName = true,
   });
+
+  /// Logs a trace message
+  void trace(String message) {
+    _log(LogLevel.trace, message);
+  }
+
+  /// Logs a fine message
+  void fine(String message) {
+    _log(LogLevel.fine, message);
+  }
 
   /// Logs a debug message
   void debug(String message) {
@@ -92,6 +108,10 @@ class Logger {
   /// Gets the prefix for the given log level
   String _getLevelPrefix(LogLevel level) {
     switch (level) {
+      case LogLevel.trace:
+        return '[TRACE]';
+      case LogLevel.fine:
+        return '[FINE]';
       case LogLevel.debug:
         return '[DEBUG]';
       case LogLevel.info:

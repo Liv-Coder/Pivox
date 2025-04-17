@@ -419,6 +419,211 @@ class HeadlessBrowser {
   /// Flag to track if the browser has been disposed
   bool _isDisposed = false;
 
+  /// Launches the browser with the given configuration
+  Future<HeadlessBrowser> launch(HeadlessBrowserConfig config) async {
+    // Create a new browser with the given configuration
+    final browser = HeadlessBrowser(config: config, logger: _logger);
+
+    // Initialize the browser
+    await browser.initialize();
+
+    // Navigate to the URL if provided
+    if (config.url != null) {
+      await browser.navigateTo(
+        config.url!,
+        headers: config.headers,
+        timeoutMillis: config.timeout,
+      );
+
+      // Wait for network idle if configured
+      if (config.waitForNetworkIdle) {
+        await browser.waitForNetworkIdle();
+      }
+
+      // Wait for DOM content loaded if configured
+      if (config.waitForDomContentLoaded) {
+        await browser.waitForDomContentLoaded();
+      }
+    }
+
+    return browser;
+  }
+
+  /// Fetches HTML content from a URL
+  Future<String> fetchHtml({
+    required String url,
+    Map<String, String>? headers,
+  }) async {
+    try {
+      // Navigate to the URL
+      await navigateTo(url, headers: headers);
+
+      // Wait for the page to load
+      await waitForDomContentLoaded();
+
+      // Get the HTML content
+      return await getHtml();
+    } catch (e) {
+      _log('Error fetching HTML: $e', isError: true);
+      throw ScrapingException.network(
+        'Failed to fetch HTML',
+        originalException: e,
+        isRetryable: true,
+      );
+    }
+  }
+
+  /// Waits for the DOM content to be loaded
+  Future<bool> waitForDomContentLoaded({int timeoutMillis = 30000}) async {
+    _checkDisposed();
+
+    if (_controller == null) {
+      throw ScrapingException.validation(
+        'Browser not initialized',
+        isRetryable: false,
+      );
+    }
+
+    try {
+      final result = await _controller!.evaluateJavascript(
+        source: """
+        new Promise((resolve) => {
+          if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            resolve(true);
+          } else {
+            document.addEventListener('DOMContentLoaded', () => resolve(true));
+          }
+        });
+      """,
+      );
+
+      return result == true;
+    } catch (e) {
+      _log('Error waiting for DOM content loaded: $e', isError: true);
+      return false;
+    }
+  }
+
+  /// Waits for the network to be idle
+  Future<bool> waitForNetworkIdle({
+    int timeoutMillis = 30000,
+    int idleTimeMs = 500,
+  }) async {
+    _checkDisposed();
+
+    if (_controller == null) {
+      throw ScrapingException.validation(
+        'Browser not initialized',
+        isRetryable: false,
+      );
+    }
+
+    try {
+      // Inject a script to track network requests
+      await _controller!.evaluateJavascript(
+        source: """
+        window._networkRequests = 0;
+        window._originalFetch = window.fetch;
+        window._originalXHR = window.XMLHttpRequest.prototype.open;
+
+        window.fetch = function() {
+          window._networkRequests++;
+          return window._originalFetch.apply(this, arguments).finally(() => {
+            window._networkRequests--;
+          });
+        };
+
+        window.XMLHttpRequest.prototype.open = function() {
+          window._networkRequests++;
+          this.addEventListener('loadend', () => {
+            window._networkRequests--;
+          });
+          return window._originalXHR.apply(this, arguments);
+        };
+      """,
+      );
+
+      // Wait for network to be idle
+      final startTime = DateTime.now();
+      while (DateTime.now().difference(startTime).inMilliseconds <
+          timeoutMillis) {
+        final requests = await _controller!.evaluateJavascript(
+          source: "window._networkRequests",
+        );
+
+        if (requests is int && requests == 0) {
+          // Wait for the idle time to make sure no new requests start
+          await Future.delayed(Duration(milliseconds: idleTimeMs));
+
+          // Check again
+          final requestsAfterIdle = await _controller!.evaluateJavascript(
+            source: "window._networkRequests",
+          );
+          if (requestsAfterIdle is int && requestsAfterIdle == 0) {
+            return true;
+          }
+        }
+
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+
+      // Timeout reached
+      return false;
+    } catch (e) {
+      _log('Error waiting for network idle: $e', isError: true);
+      return false;
+    }
+  }
+
+  /// Clicks on an element matching the given selector
+  Future<bool> click(String selector) async {
+    _checkDisposed();
+
+    if (_controller == null) {
+      throw ScrapingException.validation(
+        'Browser not initialized',
+        isRetryable: false,
+      );
+    }
+
+    try {
+      // Wait for the element to be present
+      final elementExists = await waitForElement(selector);
+      if (!elementExists) {
+        _log('Element not found: $selector', isError: true);
+        return false;
+      }
+
+      // Click the element
+      final result = await _controller!.evaluateJavascript(
+        source: """
+        (function() {
+          const element = document.querySelector('$selector');
+          if (!element) return false;
+
+          element.click();
+          return true;
+        })();
+      """,
+      );
+
+      return result == true;
+    } catch (e) {
+      _log('Error clicking element: $e', isError: true);
+      return false;
+    }
+  }
+
+  /// Gets the current page source
+  Future<String> getPageSource() async {
+    return getHtml();
+  }
+
+  /// Closes the browser
+  Future<void> close() async {
+    await dispose();
+  }
+
   /// Disposes the headless browser
   Future<void> dispose() async {
     if (_isDisposed) {

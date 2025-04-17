@@ -32,6 +32,12 @@ enum ScrapingExceptionType {
 
   /// Unexpected error
   unexpected,
+
+  /// Lazy loading error
+  lazyLoading,
+
+  /// Pagination error
+  pagination,
 }
 
 /// Exception thrown when a scraping operation fails
@@ -232,22 +238,54 @@ class ScrapingException implements Exception {
     );
   }
 
+  /// Creates a new [ScrapingException] for a lazy loading error
+  factory ScrapingException.lazyLoading(
+    String message, {
+    dynamic originalException,
+    String? url,
+    bool isRetryable = true,
+  }) {
+    return ScrapingException(
+      message,
+      type: ScrapingExceptionType.lazyLoading,
+      originalException: originalException,
+      url: url,
+      isRetryable: isRetryable,
+    );
+  }
+
+  /// Creates a new [ScrapingException] for a pagination error
+  factory ScrapingException.pagination(
+    String message, {
+    dynamic originalException,
+    String? url,
+    bool isRetryable = true,
+  }) {
+    return ScrapingException(
+      message,
+      type: ScrapingExceptionType.pagination,
+      originalException: originalException,
+      url: url,
+      isRetryable: isRetryable,
+    );
+  }
+
   @override
   String toString() {
     final buffer = StringBuffer('ScrapingException: $message');
-    
+
     if (url != null) {
       buffer.write(' (URL: $url)');
     }
-    
+
     if (statusCode != null) {
       buffer.write(' (Status: $statusCode)');
     }
-    
+
     if (originalException != null) {
       buffer.write(' (Cause: $originalException)');
     }
-    
+
     return buffer.toString();
   }
 }

@@ -42,6 +42,21 @@ class HeadlessBrowserConfig {
   /// Whether to enable logging
   final bool loggingEnabled;
 
+  /// URL to navigate to
+  final String? url;
+
+  /// Headers to send with the request
+  final Map<String, String>? headers;
+
+  /// Timeout for the request in milliseconds
+  final int? timeout;
+
+  /// Whether to wait for network idle
+  final bool waitForNetworkIdle;
+
+  /// Whether to wait for DOM content to be loaded
+  final bool waitForDomContentLoaded;
+
   /// Creates a new [HeadlessBrowserConfig] instance
   const HeadlessBrowserConfig({
     this.userAgent,
@@ -57,6 +72,11 @@ class HeadlessBrowserConfig {
     this.clearCache = false,
     this.ignoreSSLErrors = false,
     this.loggingEnabled = kDebugMode,
+    this.url,
+    this.headers,
+    this.timeout,
+    this.waitForNetworkIdle = true,
+    this.waitForDomContentLoaded = true,
   });
 
   /// Creates a new [HeadlessBrowserConfig] instance with default values
@@ -137,6 +157,11 @@ class HeadlessBrowserConfig {
     bool? clearCache,
     bool? ignoreSSLErrors,
     bool? loggingEnabled,
+    String? url,
+    Map<String, String>? headers,
+    int? timeout,
+    bool? waitForNetworkIdle,
+    bool? waitForDomContentLoaded,
   }) {
     return HeadlessBrowserConfig(
       userAgent: userAgent ?? this.userAgent,
@@ -152,6 +177,12 @@ class HeadlessBrowserConfig {
       clearCache: clearCache ?? this.clearCache,
       ignoreSSLErrors: ignoreSSLErrors ?? this.ignoreSSLErrors,
       loggingEnabled: loggingEnabled ?? this.loggingEnabled,
+      url: url ?? this.url,
+      headers: headers ?? this.headers,
+      timeout: timeout ?? this.timeout,
+      waitForNetworkIdle: waitForNetworkIdle ?? this.waitForNetworkIdle,
+      waitForDomContentLoaded:
+          waitForDomContentLoaded ?? this.waitForDomContentLoaded,
     );
   }
 }

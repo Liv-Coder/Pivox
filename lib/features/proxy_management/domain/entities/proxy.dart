@@ -13,6 +13,9 @@ class Proxy {
   /// Country code of the proxy server (optional)
   final String? countryCode;
 
+  /// Country name of the proxy server (optional)
+  final String? country;
+
   /// Whether the proxy supports HTTPS
   /// @deprecated Use protocol instead
   final bool isHttps;
@@ -31,6 +34,9 @@ class Proxy {
 
   /// Maximum speed of the proxy in Mbps (optional)
   final double? speed;
+
+  /// Latency of the proxy in milliseconds (optional)
+  final int? latency;
 
   /// Whether the proxy supports websockets (optional)
   final bool? supportsWebsockets;
@@ -62,12 +68,14 @@ class Proxy {
     required this.ip,
     required this.port,
     this.countryCode,
+    this.country,
     this.isHttps = false,
     this.protocol = ProxyProtocol.http,
     this.anonymityLevel,
     this.region,
     this.isp,
     this.speed,
+    this.latency,
     this.supportsWebsockets,
     this.auth,
     this.score,
