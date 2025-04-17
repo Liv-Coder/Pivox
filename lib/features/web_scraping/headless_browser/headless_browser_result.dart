@@ -6,22 +6,22 @@ import 'package:flutter/foundation.dart';
 class HeadlessBrowserResult {
   /// Whether the operation was successful
   final bool success;
-  
+
   /// HTML content of the page
   final String? html;
-  
+
   /// Extracted data from the page
   final Map<String, dynamic>? data;
-  
+
   /// Screenshot of the page
   final Uint8List? screenshot;
-  
+
   /// Error message if the operation failed
   final String? errorMessage;
-  
+
   /// HTTP status code of the response
   final int? statusCode;
-  
+
   /// Time taken to complete the operation in milliseconds
   final int? elapsedMillis;
 

@@ -128,8 +128,8 @@ class LazyLoadHandler {
     required HeadlessBrowser headlessBrowser,
     LazyLoadDetector? lazyLoadDetector,
     this.logger,
-  })  : _headlessBrowser = headlessBrowser,
-        _lazyLoadDetector = lazyLoadDetector ?? LazyLoadDetector(logger: logger);
+  }) : _headlessBrowser = headlessBrowser,
+       _lazyLoadDetector = lazyLoadDetector ?? LazyLoadDetector(logger: logger);
 
   /// Handles lazy loading for a URL
   ///
@@ -170,8 +170,8 @@ class LazyLoadHandler {
 
       // If lazy loading is detected but doesn't require JavaScript, scrolling, or interaction,
       // return the original HTML
-      if (!detectionResult.requiresJavaScript && 
-          !detectionResult.requiresScrolling && 
+      if (!detectionResult.requiresJavaScript &&
+          !detectionResult.requiresScrolling &&
           !detectionResult.requiresInteraction) {
         return LazyLoadResult.original(html);
       }
@@ -209,12 +209,16 @@ class LazyLoadHandler {
               scrollCount++;
 
               // Wait for content to load
-              await Future.delayed(Duration(milliseconds: config.scrollDelayMs));
+              await Future.delayed(
+                Duration(milliseconds: config.scrollDelayMs),
+              );
 
               // Check if we've reached the bottom of the page
-              final isAtBottom = await browser.executeScript(
-                'return (window.innerHeight + window.scrollY) >= document.body.scrollHeight;',
-              ) as bool;
+              final isAtBottom =
+                  await browser.executeScript(
+                        'return (window.innerHeight + window.scrollY) >= document.body.scrollHeight;',
+                      )
+                      as bool;
 
               if (isAtBottom) {
                 logger?.info('Reached the bottom of the page');
@@ -224,8 +228,8 @@ class LazyLoadHandler {
           }
 
           // Click on load more buttons if needed
-          if (detectionResult.requiresInteraction && 
-              config.clickLoadMoreButtons && 
+          if (detectionResult.requiresInteraction &&
+              config.clickLoadMoreButtons &&
               detectionResult.triggerElements.isNotEmpty) {
             logger?.info('Clicking on load more buttons');
             for (final element in detectionResult.triggerElements) {
@@ -250,9 +254,13 @@ class LazyLoadHandler {
                   clickCount++;
 
                   // Wait for content to load
-                  await Future.delayed(Duration(milliseconds: config.scrollDelayMs));
+                  await Future.delayed(
+                    Duration(milliseconds: config.scrollDelayMs),
+                  );
                 } catch (e) {
-                  logger?.warning('Failed to click element with selector "$selector": $e');
+                  logger?.warning(
+                    'Failed to click element with selector "$selector": $e',
+                  );
                 }
               }
             }

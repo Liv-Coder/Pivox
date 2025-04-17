@@ -239,7 +239,9 @@ class ContentDetector {
         author: _extractAuthor(document),
         publishDate: _extractPublishDate(document),
         modifiedDate: _extractModifiedDate(document),
-        readingTimeMinutes: _calculateReadingTime(_extractCleanText(bestArticle)),
+        readingTimeMinutes: _calculateReadingTime(
+          _extractCleanText(bestArticle),
+        ),
       );
     }
 
@@ -267,8 +269,9 @@ class ContentDetector {
       final classes = section.classes.map((c) => c.toLowerCase()).toList();
 
       if (_contentIds.any((contentId) => id.contains(contentId)) ||
-          _contentClasses.any((contentClass) => 
-            classes.any((c) => c.contains(contentClass)))) {
+          _contentClasses.any(
+            (contentClass) => classes.any((c) => c.contains(contentClass)),
+          )) {
         return ContentDetectionResult(
           mainContentElement: section,
           mainContentHtml: section.innerHtml,
@@ -308,7 +311,9 @@ class ContentDetector {
         if (_contentIds.any((contentId) => id.contains(contentId))) {
           score += 2.0;
         }
-        if (_boilerplateIds.any((boilerplateId) => id.contains(boilerplateId))) {
+        if (_boilerplateIds.any(
+          (boilerplateId) => id.contains(boilerplateId),
+        )) {
           score -= 3.0;
         }
       }
@@ -316,12 +321,15 @@ class ContentDetector {
       // Score based on class
       final classes = element.classes.map((c) => c.toLowerCase()).toList();
       if (classes.isNotEmpty) {
-        if (_contentClasses.any((contentClass) => 
-              classes.any((c) => c.contains(contentClass)))) {
+        if (_contentClasses.any(
+          (contentClass) => classes.any((c) => c.contains(contentClass)),
+        )) {
           score += 2.0;
         }
-        if (_boilerplateClasses.any((boilerplateClass) => 
-              classes.any((c) => c.contains(boilerplateClass)))) {
+        if (_boilerplateClasses.any(
+          (boilerplateClass) =>
+              classes.any((c) => c.contains(boilerplateClass)),
+        )) {
           score -= 3.0;
         }
       }
@@ -344,9 +352,8 @@ class ContentDetector {
 
     // Find the element with the highest score
     if (candidates.isNotEmpty) {
-      final bestElement = candidates.entries
-          .reduce((a, b) => a.value > b.value ? a : b)
-          .key;
+      final bestElement =
+          candidates.entries.reduce((a, b) => a.value > b.value ? a : b).key;
 
       return ContentDetectionResult(
         mainContentElement: bestElement,
@@ -357,7 +364,9 @@ class ContentDetector {
         author: _extractAuthor(document),
         publishDate: _extractPublishDate(document),
         modifiedDate: _extractModifiedDate(document),
-        readingTimeMinutes: _calculateReadingTime(_extractCleanText(bestElement)),
+        readingTimeMinutes: _calculateReadingTime(
+          _extractCleanText(bestElement),
+        ),
       );
     }
 
@@ -377,32 +386,33 @@ class ContentDetector {
       // Calculate text density (text length / HTML length)
       final text = _extractCleanText(element);
       final html = element.outerHtml;
-      
+
       if (html.isEmpty) return;
-      
+
       final density = text.length / html.length;
-      
+
       // Calculate link density (link text length / total text length)
       final links = element.getElementsByTagName('a');
       int linkTextLength = 0;
       for (final link in links) {
         linkTextLength += link.text.length;
       }
-      
+
       final linkDensity = text.isEmpty ? 1.0 : linkTextLength / text.length;
-      
+
       // Calculate paragraph density (number of paragraphs / total length)
       final paragraphs = element.getElementsByTagName('p');
-      final paragraphDensity = text.isEmpty ? 0.0 : paragraphs.length / (text.length / 500);
-      
+      final paragraphDensity =
+          text.isEmpty ? 0.0 : paragraphs.length / (text.length / 500);
+
       // Calculate final score
       double score = density * 10;
       score -= linkDensity * 5; // Penalize high link density
       score += paragraphDensity * 2; // Reward high paragraph density
-      
+
       // Bonus for longer text
       score += text.length / 2000;
-      
+
       candidates[element] = score;
     }
 
@@ -415,9 +425,8 @@ class ContentDetector {
 
     // Find the element with the highest score
     if (candidates.isNotEmpty) {
-      final bestElement = candidates.entries
-          .reduce((a, b) => a.value > b.value ? a : b)
-          .key;
+      final bestElement =
+          candidates.entries.reduce((a, b) => a.value > b.value ? a : b).key;
 
       return ContentDetectionResult(
         mainContentElement: bestElement,
@@ -428,7 +437,9 @@ class ContentDetector {
         author: _extractAuthor(document),
         publishDate: _extractPublishDate(document),
         modifiedDate: _extractModifiedDate(document),
-        readingTimeMinutes: _calculateReadingTime(_extractCleanText(bestElement)),
+        readingTimeMinutes: _calculateReadingTime(
+          _extractCleanText(bestElement),
+        ),
       );
     }
 
@@ -447,15 +458,17 @@ class ContentDetector {
     }
 
     // Check ID
-    if (id.isNotEmpty && 
+    if (id.isNotEmpty &&
         _boilerplateIds.any((boilerplateId) => id.contains(boilerplateId))) {
       return true;
     }
 
     // Check classes
-    if (classes.isNotEmpty && 
-        _boilerplateClasses.any((boilerplateClass) => 
-          classes.any((c) => c.contains(boilerplateClass)))) {
+    if (classes.isNotEmpty &&
+        _boilerplateClasses.any(
+          (boilerplateClass) =>
+              classes.any((c) => c.contains(boilerplateClass)),
+        )) {
       return true;
     }
 
@@ -468,7 +481,9 @@ class ContentDetector {
     final clone = element.clone(true);
 
     // Remove script and style elements
-    clone.querySelectorAll('script, style, noscript').forEach((e) => e.remove());
+    clone
+        .querySelectorAll('script, style, noscript')
+        .forEach((e) => e.remove());
 
     // Get the text content
     String text = clone.text;
@@ -488,7 +503,8 @@ class ContentDetector {
     }
 
     final twitterTitle = document.querySelector('meta[name="twitter:title"]');
-    if (twitterTitle != null && twitterTitle.attributes.containsKey('content')) {
+    if (twitterTitle != null &&
+        twitterTitle.attributes.containsKey('content')) {
       return twitterTitle.attributes['content'];
     }
 
@@ -553,7 +569,7 @@ class ContentDetector {
     final ogPublishedTime = document.querySelector(
       'meta[property="article:published_time"]',
     );
-    if (ogPublishedTime != null && 
+    if (ogPublishedTime != null &&
         ogPublishedTime.attributes.containsKey('content')) {
       try {
         return DateTime.parse(ogPublishedTime.attributes['content']!);
@@ -561,7 +577,9 @@ class ContentDetector {
     }
 
     // Try to find the publish date in schema.org metadata
-    final schemaPublishDate = document.querySelector('[itemprop="datePublished"]');
+    final schemaPublishDate = document.querySelector(
+      '[itemprop="datePublished"]',
+    );
     if (schemaPublishDate != null) {
       if (schemaPublishDate.attributes.containsKey('content')) {
         try {
@@ -583,7 +601,7 @@ class ContentDetector {
           return DateTime.parse(element.attributes['datetime']!);
         } catch (_) {}
       }
-      
+
       // Try to parse the text as a date
       try {
         return DateTime.parse(element.text.trim());
@@ -599,7 +617,7 @@ class ContentDetector {
     final ogModifiedTime = document.querySelector(
       'meta[property="article:modified_time"]',
     );
-    if (ogModifiedTime != null && 
+    if (ogModifiedTime != null &&
         ogModifiedTime.attributes.containsKey('content')) {
       try {
         return DateTime.parse(ogModifiedTime.attributes['content']!);
@@ -607,7 +625,9 @@ class ContentDetector {
     }
 
     // Try to find the modified date in schema.org metadata
-    final schemaModifiedDate = document.querySelector('[itemprop="dateModified"]');
+    final schemaModifiedDate = document.querySelector(
+      '[itemprop="dateModified"]',
+    );
     if (schemaModifiedDate != null) {
       if (schemaModifiedDate.attributes.containsKey('content')) {
         try {
@@ -626,13 +646,13 @@ class ContentDetector {
   int _calculateReadingTime(String text) {
     // Average reading speed is about 200-250 words per minute
     const wordsPerMinute = 225;
-    
+
     // Count words (roughly)
     final wordCount = text.split(RegExp(r'\s+')).length;
-    
+
     // Calculate reading time
     final readingTime = (wordCount / wordsPerMinute).ceil();
-    
+
     // Return at least 1 minute
     return readingTime > 0 ? readingTime : 1;
   }

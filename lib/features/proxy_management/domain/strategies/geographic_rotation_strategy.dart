@@ -42,10 +42,15 @@ class GeographicRotationStrategy implements RotationStrategy {
     // Filter proxies by country if specified
     List<Proxy> filteredProxies = proxies;
     if (targetCountry != null && targetCountry!.isNotEmpty) {
-      final countryProxies = proxies.where(
-        (proxy) => proxy.country?.toLowerCase() == targetCountry!.toLowerCase(),
-      ).toList();
-      
+      final countryProxies =
+          proxies
+              .where(
+                (proxy) =>
+                    proxy.country?.toLowerCase() ==
+                    targetCountry!.toLowerCase(),
+              )
+              .toList();
+
       if (countryProxies.isNotEmpty) {
         filteredProxies = countryProxies;
       }
@@ -53,10 +58,14 @@ class GeographicRotationStrategy implements RotationStrategy {
 
     // Filter proxies by region if specified and preferSameRegion is true
     if (preferSameRegion && targetRegion != null && targetRegion!.isNotEmpty) {
-      final regionProxies = filteredProxies.where(
-        (proxy) => proxy.region?.toLowerCase() == targetRegion!.toLowerCase(),
-      ).toList();
-      
+      final regionProxies =
+          filteredProxies
+              .where(
+                (proxy) =>
+                    proxy.region?.toLowerCase() == targetRegion!.toLowerCase(),
+              )
+              .toList();
+
       if (regionProxies.isNotEmpty) {
         filteredProxies = regionProxies;
       }
@@ -64,10 +73,14 @@ class GeographicRotationStrategy implements RotationStrategy {
 
     // Filter proxies by latency if specified
     if (useLatencyBasedSelection && maxLatency != null && maxLatency! > 0) {
-      final lowLatencyProxies = filteredProxies.where(
-        (proxy) => proxy.latency != null && proxy.latency! <= maxLatency!,
-      ).toList();
-      
+      final lowLatencyProxies =
+          filteredProxies
+              .where(
+                (proxy) =>
+                    proxy.latency != null && proxy.latency! <= maxLatency!,
+              )
+              .toList();
+
       if (lowLatencyProxies.isNotEmpty) {
         filteredProxies = lowLatencyProxies;
       }
@@ -100,7 +113,7 @@ class GeographicRotationStrategy implements RotationStrategy {
     for (final proxy in proxies) {
       // Use a default latency if not available
       final latency = proxy.latency ?? 1000;
-      
+
       // Calculate weight as inverse of latency (lower latency = higher weight)
       // Add a small constant to avoid division by zero
       final weight = 1.0 / (latency + 10);

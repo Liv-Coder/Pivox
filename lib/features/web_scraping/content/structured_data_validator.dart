@@ -118,10 +118,11 @@ class StructuredDataValidator {
     }
 
     // Check if any fields are invalid
-    final invalidFields = fieldResults.entries
-        .where((entry) => !entry.value.isValid)
-        .map((entry) => entry.key)
-        .toList();
+    final invalidFields =
+        fieldResults.entries
+            .where((entry) => !entry.value.isValid)
+            .map((entry) => entry.key)
+            .toList();
 
     if (invalidFields.isNotEmpty) {
       return StructuredDataValidationResult.invalid(

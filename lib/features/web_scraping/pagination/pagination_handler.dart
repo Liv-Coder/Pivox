@@ -106,10 +106,8 @@ class PaginationHandler {
   final Logger? logger;
 
   /// Creates a new [PaginationHandler]
-  PaginationHandler({
-    required WebScraper webScraper,
-    this.logger,
-  }) : _webScraper = webScraper;
+  PaginationHandler({required WebScraper webScraper, this.logger})
+    : _webScraper = webScraper;
 
   /// Scrapes multiple pages with pagination
   ///
@@ -135,9 +133,9 @@ class PaginationHandler {
 
     try {
       // Scrape pages until we reach the maximum or there are no more pages
-      while (nextPageUrl != null && 
-             pageCount < config.maxPages && 
-             pageUrls.length <= config.maxDepth) {
+      while (nextPageUrl != null &&
+          pageCount < config.maxPages &&
+          pageUrls.length <= config.maxDepth) {
         // Avoid duplicate pages
         if (pageUrls.contains(nextPageUrl)) {
           logger?.warning('Duplicate page URL detected: $nextPageUrl');

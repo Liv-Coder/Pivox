@@ -77,16 +77,13 @@ class PaginationDetector {
   final String baseUrl;
 
   /// Creates a new [PaginationDetector]
-  PaginationDetector({
-    required this.baseUrl,
-    this.logger,
-  });
+  PaginationDetector({required this.baseUrl, this.logger});
 
   /// Detects pagination in HTML
   PaginationDetectionResult detectPagination(String html) {
     try {
       final document = html_parser.parse(html);
-      
+
       // Try different pagination detection methods
       final numberedResult = _detectNumberedPagination(document);
       if (numberedResult != null) {
@@ -142,8 +139,11 @@ class PaginationDetector {
       final elements = document.querySelectorAll(selector);
       if (elements.isNotEmpty) {
         // Find the element with the most links
-        elements.sort((a, b) => 
-          b.querySelectorAll('a').length.compareTo(a.querySelectorAll('a').length)
+        elements.sort(
+          (a, b) => b
+              .querySelectorAll('a')
+              .length
+              .compareTo(a.querySelectorAll('a').length),
         );
         paginationElement = elements.first;
         break;
@@ -176,10 +176,11 @@ class PaginationDetector {
         }
 
         // Find the closest common parent that contains all page links
-        final commonParent = parents.entries
-            .where((entry) => entry.value == pageLinks.length)
-            .map((entry) => entry.key)
-            .toList();
+        final commonParent =
+            parents.entries
+                .where((entry) => entry.value == pageLinks.length)
+                .map((entry) => entry.key)
+                .toList();
 
         if (commonParent.isNotEmpty) {
           // Sort by depth (prefer the deepest element)
@@ -214,7 +215,9 @@ class PaginationDetector {
       bool isLastPage = false;
 
       // Find the current page
-      final currentPageElement = paginationElement.querySelector('.current, .active, [aria-current="page"]');
+      final currentPageElement = paginationElement.querySelector(
+        '.current, .active, [aria-current="page"]',
+      );
       if (currentPageElement != null) {
         final text = currentPageElement.text.trim();
         if (RegExp(r'^\d+$').hasMatch(text)) {
@@ -237,41 +240,47 @@ class PaginationDetector {
           final classes = link.classes.map((c) => c.toLowerCase()).toList();
           final ariaLabel = link.attributes['aria-label']?.toLowerCase();
 
-          if (rel == 'next' || 
-              text == 'next' || 
-              text == '>' || 
-              text == '›' || 
+          if (rel == 'next' ||
+              text == 'next' ||
+              text == '>' ||
+              text == '›' ||
               text == '»' ||
               classes.contains('next') ||
               ariaLabel == 'next') {
             nextPageUrl = absoluteUrl;
-          } else if (rel == 'prev' || 
-                    text == 'prev' || 
-                    text == 'previous' || 
-                    text == '<' || 
-                    text == '‹' || 
-                    text == '«' ||
-                    classes.contains('prev') ||
-                    classes.contains('previous') ||
-                    ariaLabel == 'previous') {
+          } else if (rel == 'prev' ||
+              text == 'prev' ||
+              text == 'previous' ||
+              text == '<' ||
+              text == '‹' ||
+              text == '«' ||
+              classes.contains('prev') ||
+              classes.contains('previous') ||
+              ariaLabel == 'previous') {
             prevPageUrl = absoluteUrl;
           }
         }
       }
 
       // Try to determine the total number of pages
-      final pageTexts = paginationElement.querySelectorAll('a, span')
-          .map((e) => e.text.trim())
-          .where((text) => RegExp(r'^\d+$').hasMatch(text))
-          .map((text) => int.parse(text))
-          .toList();
+      final pageTexts =
+          paginationElement
+              .querySelectorAll('a, span')
+              .map((e) => e.text.trim())
+              .where((text) => RegExp(r'^\d+$').hasMatch(text))
+              .map((text) => int.parse(text))
+              .toList();
 
       if (pageTexts.isNotEmpty) {
         totalPages = pageTexts.reduce((a, b) => a > b ? a : b);
       }
 
       // Check if this is the last page
-      isLastPage = nextPageUrl == null || (currentPage != null && totalPages != null && currentPage >= totalPages);
+      isLastPage =
+          nextPageUrl == null ||
+          (currentPage != null &&
+              totalPages != null &&
+              currentPage >= totalPages);
 
       return PaginationDetectionResult(
         type: PaginationType.numbered,
@@ -296,7 +305,9 @@ class PaginationDetector {
     Element? paginationElement;
 
     // Check link elements with rel="next" or rel="prev"
-    final relLinks = document.querySelectorAll('link[rel="next"], link[rel="prev"]');
+    final relLinks = document.querySelectorAll(
+      'link[rel="next"], link[rel="prev"]',
+    );
     for (final link in relLinks) {
       final rel = link.attributes['rel'];
       final href = link.attributes['href'];
@@ -452,11 +463,12 @@ class PaginationDetector {
               );
             }
           }
-          
+
           // For button elements, check for data attributes
-          final dataUrl = element.attributes['data-url'] ?? 
-                         element.attributes['data-href'] ?? 
-                         element.attributes['data-link'];
+          final dataUrl =
+              element.attributes['data-url'] ??
+              element.attributes['data-href'] ??
+              element.attributes['data-link'];
           if (dataUrl != null && dataUrl.isNotEmpty) {
             final absoluteUrl = _resolveUrl(dataUrl);
             if (absoluteUrl != null) {
@@ -468,10 +480,11 @@ class PaginationDetector {
               );
             }
           }
-          
+
           // Check for other common attributes
-          final dataPage = element.attributes['data-page'] ?? 
-                          element.attributes['data-next-page'];
+          final dataPage =
+              element.attributes['data-page'] ??
+              element.attributes['data-next-page'];
           if (dataPage != null && dataPage.isNotEmpty) {
             // This is likely a load more button with AJAX pagination
             return PaginationDetectionResult(
@@ -491,40 +504,43 @@ class PaginationDetector {
   }
 
   /// Detects infinite scroll pagination
-  PaginationDetectionResult? _detectInfiniteScrollPagination(Document document) {
+  PaginationDetectionResult? _detectInfiniteScrollPagination(
+    Document document,
+  ) {
     // Look for common infinite scroll indicators in the page's JavaScript
     final scriptElements = document.querySelectorAll('script');
     for (final script in scriptElements) {
       final scriptText = script.text.toLowerCase();
-      
+
       // Check for common infinite scroll libraries and patterns
-      if (scriptText.contains('infinite scroll') || 
-          scriptText.contains('infinitescroll') || 
-          scriptText.contains('endless scroll') || 
+      if (scriptText.contains('infinite scroll') ||
+          scriptText.contains('infinitescroll') ||
+          scriptText.contains('endless scroll') ||
           scriptText.contains('lazy load') ||
           scriptText.contains('load on scroll')) {
-        
         // Try to extract the next page URL from the script
         String? nextPageUrl;
-        
+
         // Try to find double-quoted next URL pattern
         if (scriptText.contains('"next"')) {
           final doubleQuotePattern = RegExp('"next"\\s*:\\s*"([^"]+)"');
           final doubleQuoteMatches = doubleQuotePattern.allMatches(scriptText);
-          if (doubleQuoteMatches.isNotEmpty && doubleQuoteMatches.first.groupCount >= 1) {
+          if (doubleQuoteMatches.isNotEmpty &&
+              doubleQuoteMatches.first.groupCount >= 1) {
             nextPageUrl = doubleQuoteMatches.first.group(1);
           }
         }
-        
+
         // Try to find single-quoted next URL pattern
         if (nextPageUrl == null && scriptText.contains("'next'")) {
           final singleQuotePattern = RegExp("'next'\\s*:\\s*'([^']+)'");
           final singleQuoteMatches = singleQuotePattern.allMatches(scriptText);
-          if (singleQuoteMatches.isNotEmpty && singleQuoteMatches.first.groupCount >= 1) {
+          if (singleQuoteMatches.isNotEmpty &&
+              singleQuoteMatches.first.groupCount >= 1) {
             nextPageUrl = singleQuoteMatches.first.group(1);
           }
         }
-        
+
         if (nextPageUrl != null) {
           final absoluteUrl = _resolveUrl(nextPageUrl);
           if (absoluteUrl != null) {
@@ -535,7 +551,7 @@ class PaginationDetector {
             );
           }
         }
-        
+
         // If we found infinite scroll indicators but no URL, still return a result
         return PaginationDetectionResult(
           type: PaginationType.infiniteScroll,
@@ -545,13 +561,16 @@ class PaginationDetector {
     }
 
     // Check for common infinite scroll data attributes
-    final elements = document.querySelectorAll('[data-infinite-scroll], [data-infinite], [data-endless-scroll]');
+    final elements = document.querySelectorAll(
+      '[data-infinite-scroll], [data-infinite], [data-endless-scroll]',
+    );
     if (elements.isNotEmpty) {
       // Try to extract the next page URL from data attributes
       for (final element in elements) {
-        final dataNext = element.attributes['data-next'] ?? 
-                        element.attributes['data-next-page'] ?? 
-                        element.attributes['data-next-url'];
+        final dataNext =
+            element.attributes['data-next'] ??
+            element.attributes['data-next-page'] ??
+            element.attributes['data-next-url'];
         if (dataNext != null && dataNext.isNotEmpty) {
           final absoluteUrl = _resolveUrl(dataNext);
           if (absoluteUrl != null) {
@@ -564,7 +583,7 @@ class PaginationDetector {
           }
         }
       }
-      
+
       // If we found infinite scroll indicators but no URL, still return a result
       return PaginationDetectionResult(
         type: PaginationType.infiniteScroll,
@@ -594,9 +613,10 @@ class PaginationDetector {
         ).toString();
       } else {
         // Relative path
-        final basePath = baseUri.path.endsWith('/')
-            ? baseUri.path
-            : baseUri.path.substring(0, baseUri.path.lastIndexOf('/') + 1);
+        final basePath =
+            baseUri.path.endsWith('/')
+                ? baseUri.path
+                : baseUri.path.substring(0, baseUri.path.lastIndexOf('/') + 1);
         return Uri(
           scheme: baseUri.scheme,
           host: baseUri.host,

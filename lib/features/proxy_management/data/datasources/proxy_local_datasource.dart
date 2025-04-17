@@ -7,18 +7,18 @@ import '../models/proxy_model.dart';
 /// Interface for local data source to cache proxies
 abstract class ProxyLocalDataSource {
   /// Caches a list of proxies
-  /// 
+  ///
   /// [proxies] is the list of proxies to cache
   Future<void> cacheProxies(List<ProxyModel> proxies);
-  
+
   /// Gets the cached proxies
   Future<List<ProxyModel>> getCachedProxies();
-  
+
   /// Caches a list of validated proxies
-  /// 
+  ///
   /// [proxies] is the list of validated proxies to cache
   Future<void> cacheValidatedProxies(List<ProxyModel> proxies);
-  
+
   /// Gets the cached validated proxies
   Future<List<ProxyModel>> getCachedValidatedProxies();
 }
@@ -27,10 +27,10 @@ abstract class ProxyLocalDataSource {
 class ProxyLocalDataSourceImpl implements ProxyLocalDataSource {
   /// SharedPreferences instance for storing data
   final SharedPreferences sharedPreferences;
-  
+
   /// Key for storing proxies in SharedPreferences
   static const String cachedProxiesKey = 'CACHED_PROXIES';
-  
+
   /// Key for storing validated proxies in SharedPreferences
   static const String cachedValidatedProxiesKey = 'CACHED_VALIDATED_PROXIES';
 
@@ -41,18 +41,18 @@ class ProxyLocalDataSourceImpl implements ProxyLocalDataSource {
   Future<void> cacheProxies(List<ProxyModel> proxies) async {
     final jsonList = proxies.map((proxy) => proxy.toJson()).toList();
     final jsonString = json.encode(jsonList);
-    
+
     await sharedPreferences.setString(cachedProxiesKey, jsonString);
   }
 
   @override
   Future<List<ProxyModel>> getCachedProxies() async {
     final jsonString = sharedPreferences.getString(cachedProxiesKey);
-    
+
     if (jsonString == null) {
       return [];
     }
-    
+
     try {
       final jsonList = json.decode(jsonString) as List;
       return jsonList
@@ -67,18 +67,18 @@ class ProxyLocalDataSourceImpl implements ProxyLocalDataSource {
   Future<void> cacheValidatedProxies(List<ProxyModel> proxies) async {
     final jsonList = proxies.map((proxy) => proxy.toJson()).toList();
     final jsonString = json.encode(jsonList);
-    
+
     await sharedPreferences.setString(cachedValidatedProxiesKey, jsonString);
   }
 
   @override
   Future<List<ProxyModel>> getCachedValidatedProxies() async {
     final jsonString = sharedPreferences.getString(cachedValidatedProxiesKey);
-    
+
     if (jsonString == null) {
       return [];
     }
-    
+
     try {
       final jsonList = json.decode(jsonString) as List;
       return jsonList

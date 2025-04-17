@@ -1,8 +1,8 @@
 # Changelog
 
-## 1.1.0 - Performance and Reliability Improvements (2025-05-10 Upcoming)
+## 1.1.0 - Performance and Reliability Improvements (2025-04-17)
 
-### New Features
+### Performance Features
 
 - **Parallel Processing Framework**: New `TaskScheduler` and `ScrapingTask` classes for advanced parallel scraping
 - **Resource-Aware Concurrency**: Adaptive concurrency limits based on CPU and memory usage
@@ -42,7 +42,7 @@
 - **Rate Limiting**: Domain-specific rate limiting with exponential backoff
 - **Respectful Crawling**: Automatic crawl delays based on site reputation
 
-### UI Improvements
+### Interface Enhancements
 
 - **Modern Flat Design**: Clean, responsive interface with consistent styling
 - **Tabbed Interface**: Organized access to different features through a tabbed layout
@@ -65,7 +65,7 @@
 - **Improved ProxyHttpClient**: Enhanced error handling and fallback mechanisms in the HTTP client
 - **UI Improvements**: Fixed issues with displaying scraped data in the example app
 
-### Documentation
+### Documentation Updates
 
 - **Performance Optimization Guide**: Comprehensive documentation on performance features
 - **Example Application**: Interactive example demonstrating parallel, cached, and chunked scraping
@@ -99,7 +99,7 @@
 - **OnlineKhabarHandler**: Custom handler for onlinekhabar.com
 - **VegaMoviesHandler**: Custom handler for vegamovies sites
 
-### Documentation
+### Initial Documentation
 
 - Comprehensive API documentation
 - Detailed web scraping guide

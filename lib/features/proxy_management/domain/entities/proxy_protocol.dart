@@ -2,13 +2,13 @@
 enum ProxyProtocol {
   /// HTTP proxy
   http,
-  
+
   /// HTTPS proxy
   https,
-  
+
   /// SOCKS4 proxy
   socks4,
-  
+
   /// SOCKS5 proxy
   socks5,
 }
@@ -28,13 +28,14 @@ extension ProxyProtocolExtension on ProxyProtocol {
         return 'SOCKS5';
     }
   }
-  
+
   /// Returns true if this is a SOCKS protocol
-  bool get isSocks => this == ProxyProtocol.socks4 || this == ProxyProtocol.socks5;
-  
+  bool get isSocks =>
+      this == ProxyProtocol.socks4 || this == ProxyProtocol.socks5;
+
   /// Returns true if this is an HTTP protocol
   bool get isHttp => this == ProxyProtocol.http || this == ProxyProtocol.https;
-  
+
   /// Returns the SOCKS version if this is a SOCKS protocol
   int? get socksVersion {
     switch (this) {

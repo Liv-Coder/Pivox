@@ -24,10 +24,7 @@ class ContentValidationResult {
 
   /// Creates a new [ContentValidationResult] for valid content
   factory ContentValidationResult.valid(String content) {
-    return ContentValidationResult(
-      isValid: true,
-      originalContent: content,
-    );
+    return ContentValidationResult(isValid: true, originalContent: content);
   }
 
   /// Creates a new [ContentValidationResult] for invalid content
@@ -97,14 +94,16 @@ class ContentValidator {
     if (content.length < minContentLength) {
       return ContentValidationResult.invalid(
         content,
-        errorMessage: 'Content is too short (${content.length} < $minContentLength)',
+        errorMessage:
+            'Content is too short (${content.length} < $minContentLength)',
       );
     }
 
     if (content.length > maxContentLength) {
       return ContentValidationResult.invalid(
         content,
-        errorMessage: 'Content is too long (${content.length} > $maxContentLength)',
+        errorMessage:
+            'Content is too long (${content.length} > $maxContentLength)',
       );
     }
 
@@ -128,10 +127,7 @@ class ContentValidator {
     }
 
     if (needsCleaning) {
-      return ContentValidationResult.cleaned(
-        content,
-        cleanedContent!,
-      );
+      return ContentValidationResult.cleaned(content, cleanedContent!);
     }
 
     return ContentValidationResult.valid(content);

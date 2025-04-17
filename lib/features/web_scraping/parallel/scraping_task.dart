@@ -115,17 +115,19 @@ class ScrapingTask<T> {
   Future<T> get future => _completer.future;
 
   /// Gets whether this task is complete
-  bool get isComplete => status == TaskStatus.completed || 
-                        status == TaskStatus.failed || 
-                        status == TaskStatus.cancelled;
+  bool get isComplete =>
+      status == TaskStatus.completed ||
+      status == TaskStatus.failed ||
+      status == TaskStatus.cancelled;
 
   /// Gets whether this task can be executed
-  bool get canExecute => status == TaskStatus.created || 
-                        status == TaskStatus.queued || 
-                        (status == TaskStatus.failed && retryCount < maxRetries);
+  bool get canExecute =>
+      status == TaskStatus.created ||
+      status == TaskStatus.queued ||
+      (status == TaskStatus.failed && retryCount < maxRetries);
 
   /// Gets whether this task's dependencies are complete
-  bool get areDependenciesComplete => 
+  bool get areDependenciesComplete =>
       dependencies.every((dep) => dep.isComplete);
 
   /// Gets whether this task has been processed
@@ -161,21 +163,21 @@ class ScrapingTask<T> {
     try {
       // Execute the task
       final result = await execute();
-      
+
       // Update status and completion time
       status = TaskStatus.completed;
       completedAt = DateTime.now();
       this.result = result;
-      
+
       // Calculate execution time
       final executionTime = completedAt!.difference(startedAt!).inMilliseconds;
       logger?.info('Completed task $id in ${executionTime}ms');
-      
+
       // Complete the future
       if (!_completer.isCompleted) {
         _completer.complete(result);
       }
-      
+
       return result;
     } catch (e, st) {
       // Update status and error information
@@ -183,22 +185,22 @@ class ScrapingTask<T> {
       error = e;
       stackTrace = st;
       completedAt = DateTime.now();
-      
+
       // Log the error
       logger?.error('Task $id failed: $e');
-      
+
       // Check if we can retry
       if (retryCount < maxRetries) {
         retryCount++;
         logger?.info('Retrying task $id (attempt $retryCount/$maxRetries)');
         return run();
       }
-      
+
       // Complete the future with an error
       if (!_completer.isCompleted) {
         _completer.completeError(e, st);
       }
-      
+
       rethrow;
     }
   }
@@ -206,17 +208,14 @@ class ScrapingTask<T> {
   /// Cancels the task
   void cancel() {
     if (isComplete) return;
-    
+
     status = TaskStatus.cancelled;
     completedAt = DateTime.now();
     logger?.info('Task $id cancelled');
-    
+
     if (!_completer.isCompleted) {
       _completer.completeError(
-        ScrapingException.validation(
-          'Task was cancelled',
-          isRetryable: false,
-        ),
+        ScrapingException.validation('Task was cancelled', isRetryable: false),
       );
     }
   }

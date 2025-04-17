@@ -2,25 +2,25 @@
 class ProxyModel {
   /// IP address of the proxy server
   final String ip;
-  
+
   /// Port number of the proxy server
   final int port;
-  
+
   /// Country code of the proxy server (optional)
   final String? countryCode;
-  
+
   /// Whether the proxy supports HTTPS
   final bool isHttps;
-  
+
   /// Anonymity level of the proxy (e.g., 'elite', 'anonymous', 'transparent')
   final String? anonymityLevel;
-  
+
   /// Last time the proxy was checked (in milliseconds since epoch)
   final int? lastChecked;
-  
+
   /// Response time of the proxy in milliseconds (optional)
   final int? responseTime;
-  
+
   /// Creates a new [ProxyModel] instance
   const ProxyModel({
     required this.ip,
@@ -31,7 +31,7 @@ class ProxyModel {
     this.lastChecked,
     this.responseTime,
   });
-  
+
   /// Creates a [ProxyModel] from a JSON map
   factory ProxyModel.fromJson(Map<String, dynamic> json) {
     return ProxyModel(
@@ -44,7 +44,7 @@ class ProxyModel {
       responseTime: json['responseTime'] as int?,
     );
   }
-  
+
   /// Converts this [ProxyModel] to a JSON map
   Map<String, dynamic> toJson() {
     return {
@@ -57,10 +57,10 @@ class ProxyModel {
       if (responseTime != null) 'responseTime': responseTime,
     };
   }
-  
+
   /// Returns the proxy URL in the format 'http(s)://ip:port'
   String get url => '${isHttps ? 'https' : 'http'}://$ip:$port';
-  
+
   /// Returns a string representation of the proxy in the format 'ip:port'
   @override
   String toString() => '$ip:$port';

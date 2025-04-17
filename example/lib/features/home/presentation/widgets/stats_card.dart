@@ -31,7 +31,9 @@ class StatsCard extends StatelessWidget {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(AppSpacing.xs), // Reduced padding
+                    padding: const EdgeInsets.all(
+                      AppSpacing.xs,
+                    ), // Reduced padding
                     decoration: BoxDecoration(
                       color: color.withAlpha(25),
                       borderRadius: BorderRadius.circular(AppSpacing.sm),
@@ -43,7 +45,9 @@ class StatsCard extends StatelessWidget {
                     child: Text(
                       title,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurface.withAlpha(178),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withAlpha(178),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,

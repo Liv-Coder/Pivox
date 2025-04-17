@@ -24,8 +24,7 @@ class ProxyErrorDetector {
     }
 
     // Timeout errors
-    if (errorString.contains('timeout') ||
-        errorString.contains('timed out')) {
+    if (errorString.contains('timeout') || errorString.contains('timed out')) {
       return ProxyErrorType.connectionTimeout;
     }
 
@@ -105,11 +104,7 @@ class ProxyErrorDetector {
 
     switch (errorType) {
       case ProxyErrorType.connectionError:
-        return ProxyConnectionError(
-          host: host,
-          port: port,
-          cause: error,
-        );
+        return ProxyConnectionError(host: host, port: port, cause: error);
       case ProxyErrorType.connectionReset:
         return ProxyConnectionError.connectionReset(
           host: host,
@@ -148,18 +143,17 @@ class ProxyErrorDetector {
           cause: error,
         );
       case ProxyErrorType.authenticationFailed:
-        return ProxyAuthenticationError(
-          host: host,
-          port: port,
-          cause: error,
-        );
+        return ProxyAuthenticationError(host: host, port: port, cause: error);
       case ProxyErrorType.httpError:
         // Try to extract status code
         final errorString = error.toString();
-        final statusCodeMatch = RegExp(r'status code (\d+)').firstMatch(errorString);
-        final statusCode = statusCodeMatch != null
-            ? int.tryParse(statusCodeMatch.group(1) ?? '')
-            : null;
+        final statusCodeMatch = RegExp(
+          r'status code (\d+)',
+        ).firstMatch(errorString);
+        final statusCode =
+            statusCodeMatch != null
+                ? int.tryParse(statusCodeMatch.group(1) ?? '')
+                : null;
 
         return ProxyInvalidResponseError.httpError(
           host: host,
@@ -170,10 +164,13 @@ class ProxyErrorDetector {
       case ProxyErrorType.rateLimited:
         // Try to extract retry-after
         final errorString = error.toString();
-        final retryAfterMatch = RegExp(r'retry after (\d+)').firstMatch(errorString);
-        final retryAfter = retryAfterMatch != null
-            ? int.tryParse(retryAfterMatch.group(1) ?? '')
-            : null;
+        final retryAfterMatch = RegExp(
+          r'retry after (\d+)',
+        ).firstMatch(errorString);
+        final retryAfter =
+            retryAfterMatch != null
+                ? int.tryParse(retryAfterMatch.group(1) ?? '')
+                : null;
 
         return ProxyRateLimitedError(
           host: host,
@@ -197,16 +194,9 @@ class ProxyErrorDetector {
           cause: error,
         );
       case ProxyErrorType.noProxiesAvailable:
-        return NoProxiesAvailableError(
-          'No proxies available',
-          error,
-        );
+        return NoProxiesAvailableError('No proxies available', error);
       case ProxyErrorType.invalidResponse:
-        return ProxyInvalidResponseError(
-          host: host,
-          port: port,
-          cause: error,
-        );
+        return ProxyInvalidResponseError(host: host, port: port, cause: error);
       case ProxyErrorType.unknown:
         return ProxyConnectionError(
           host: host,

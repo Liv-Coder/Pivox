@@ -34,10 +34,8 @@ class ResourceMonitor {
   DateTime? _previousCpuTime;
 
   /// Creates a new [ResourceMonitor]
-  ResourceMonitor({
-    this.checkIntervalMs = 5000,
-    this.logger,
-  }) : _processorCount = Platform.numberOfProcessors;
+  ResourceMonitor({this.checkIntervalMs = 5000, this.logger})
+    : _processorCount = Platform.numberOfProcessors;
 
   /// Gets the current CPU usage (0.0 to 1.0)
   double get cpuUsage => _cpuUsage;
@@ -54,13 +52,13 @@ class ResourceMonitor {
   /// Starts the resource monitor
   void start() {
     if (_isRunning) return;
-    
+
     _isRunning = true;
     logger?.info('Resource monitor started');
-    
+
     // Check resources immediately
     _checkResources();
-    
+
     // Start the timer for periodic checks
     _checkTimer = Timer.periodic(
       Duration(milliseconds: checkIntervalMs),
@@ -71,10 +69,10 @@ class ResourceMonitor {
   /// Stops the resource monitor
   void stop() {
     if (!_isRunning) return;
-    
+
     _isRunning = false;
     logger?.info('Resource monitor stopped');
-    
+
     // Cancel the timer
     _checkTimer?.cancel();
     _checkTimer = null;
@@ -85,10 +83,10 @@ class ResourceMonitor {
     try {
       // Check CPU usage
       await _checkCpuUsage();
-      
+
       // Check memory usage
       await _checkMemoryUsage();
-      
+
       logger?.fine(
         'Resource usage: CPU: ${(_cpuUsage * 100).toStringAsFixed(1)}%, '
         'Memory: ${(_memoryUsage * 100).toStringAsFixed(1)}%',
@@ -103,35 +101,36 @@ class ResourceMonitor {
     try {
       // This is a simplified approach that works on most platforms
       // For more accurate measurements, platform-specific code would be needed
-      
+
       // Get the current time
       final now = DateTime.now();
-      
+
       // Get the current CPU times
       final currentCpuTimes = await _getCpuTimes();
-      
+
       // If we have previous measurements, calculate the usage
       if (_previousCpuTimes != null && _previousCpuTime != null) {
         // Calculate the time difference
-        final timeDiff = now.difference(_previousCpuTime!).inMilliseconds / 1000.0;
-        
+        final timeDiff =
+            now.difference(_previousCpuTime!).inMilliseconds / 1000.0;
+
         // Calculate the CPU time differences
         final cpuTimeDiffs = <double>[];
         for (int i = 0; i < currentCpuTimes.length; i++) {
           final diff = currentCpuTimes[i] - _previousCpuTimes![i];
           cpuTimeDiffs.add(diff);
         }
-        
+
         // Calculate the total CPU time difference
         final totalCpuTimeDiff = cpuTimeDiffs.reduce((a, b) => a + b);
-        
+
         // Calculate the CPU usage
         _cpuUsage = totalCpuTimeDiff / (timeDiff * _processorCount);
-        
+
         // Ensure the CPU usage is between 0 and 1
         _cpuUsage = _cpuUsage.clamp(0.0, 1.0);
       }
-      
+
       // Store the current measurements for the next check
       _previousCpuTimes = currentCpuTimes;
       _previousCpuTime = now;
@@ -144,7 +143,7 @@ class ResourceMonitor {
   Future<List<double>> _getCpuTimes() async {
     // This is a simplified approach that works on most platforms
     // For more accurate measurements, platform-specific code would be needed
-    
+
     // Use an isolate to measure CPU time
     final result = await Isolate.run(() {
       // Simulate CPU work
@@ -154,7 +153,7 @@ class ResourceMonitor {
       }
       return sum;
     });
-    
+
     // Return a simple estimate based on the result
     // This is not accurate but provides a relative measure
     return [result / 1000000];
@@ -165,10 +164,10 @@ class ResourceMonitor {
     try {
       // Get the current memory usage
       final memoryInfo = await _getMemoryInfo();
-      
+
       // Calculate the memory usage
       _memoryUsage = memoryInfo['used']! / memoryInfo['total']!;
-      
+
       // Ensure the memory usage is between 0 and 1
       _memoryUsage = _memoryUsage.clamp(0.0, 1.0);
     } catch (e) {
@@ -180,20 +179,17 @@ class ResourceMonitor {
   Future<Map<String, double>> _getMemoryInfo() async {
     // This is a simplified approach that works on most platforms
     // For more accurate measurements, platform-specific code would be needed
-    
+
     // Use an isolate to measure memory
     return await Isolate.run(() {
       // Get the current memory usage
       final memoryUsed = ProcessInfo.currentRss.toDouble();
-      
+
       // Get the total memory
       // This is not accurate but provides a relative measure
       final totalMemory = 1024 * 1024 * 1024 * 8.0; // Assume 8 GB
-      
-      return {
-        'used': memoryUsed,
-        'total': totalMemory,
-      };
+
+      return {'used': memoryUsed, 'total': totalMemory};
     });
   }
 }

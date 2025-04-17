@@ -51,7 +51,9 @@ class AnalyticsCard extends StatelessWidget {
                       child: Text(
                         title,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface.withAlpha(179),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withAlpha(179),
                           fontSize: 10, // Smaller font
                         ),
                         maxLines: 1,
@@ -82,7 +84,9 @@ class AnalyticsCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      isPositive ? Ionicons.arrow_up_outline : Ionicons.arrow_down_outline,
+                      isPositive
+                          ? Ionicons.arrow_up_outline
+                          : Ionicons.arrow_down_outline,
                       size: 10, // Smaller icon
                       color: isPositive ? AppColors.success : AppColors.error,
                     ),
@@ -99,7 +103,9 @@ class AnalyticsCard extends StatelessWidget {
                     Text(
                       'vs prev',
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurface.withAlpha(128),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withAlpha(128),
                         fontSize: 8, // Smaller font
                       ),
                       overflow: TextOverflow.ellipsis,

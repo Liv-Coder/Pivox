@@ -43,10 +43,10 @@ class ProxySession {
     DateTime? lastAccessTime,
     this.requestCount = 0,
     this.isActive = true,
-  })  : cookies = cookies ?? {},
-        headers = headers ?? {},
-        creationTime = creationTime ?? DateTime.now(),
-        lastAccessTime = lastAccessTime ?? DateTime.now();
+  }) : cookies = cookies ?? {},
+       headers = headers ?? {},
+       creationTime = creationTime ?? DateTime.now(),
+       lastAccessTime = lastAccessTime ?? DateTime.now();
 
   /// Updates the last access time
   void updateLastAccessTime() {
@@ -177,7 +177,9 @@ class ProxySessionManager {
     // Check if we already have a session for this proxy and domain
     final existingSession = getSession(proxy: proxy, domain: domain);
     if (existingSession != null && existingSession.isActive) {
-      logger?.info('Using existing session for ${proxy.host}:${proxy.port} on $domain');
+      logger?.info(
+        'Using existing session for ${proxy.host}:${proxy.port} on $domain',
+      );
       existingSession.updateLastAccessTime();
       return existingSession;
     }
@@ -207,17 +209,18 @@ class ProxySessionManager {
     // Add the session to the maps
     _sessionsById[sessionId] = session;
     _sessionsByProxy.putIfAbsent(proxyKey, () => []).add(session);
-    _sessionsByDomain.putIfAbsent(domain, () => {}).putIfAbsent(proxyKey, () => session);
+    _sessionsByDomain
+        .putIfAbsent(domain, () => {})
+        .putIfAbsent(proxyKey, () => session);
 
-    logger?.info('Created new session for ${proxy.host}:${proxy.port} on $domain');
+    logger?.info(
+      'Created new session for ${proxy.host}:${proxy.port} on $domain',
+    );
     return session;
   }
 
   /// Gets a session for a proxy and domain
-  ProxySession? getSession({
-    required Proxy proxy,
-    required String domain,
-  }) {
+  ProxySession? getSession({required Proxy proxy, required String domain}) {
     // Clean up old sessions
     _cleanupSessions();
 
@@ -281,7 +284,9 @@ class ProxySessionManager {
     // Remove empty domain maps
     _sessionsByDomain.removeWhere((_, sessions) => sessions.isEmpty);
 
-    logger?.info('Removed session ${session.sessionId} for ${session.proxy.host}:${session.proxy.port}');
+    logger?.info(
+      'Removed session ${session.sessionId} for ${session.proxy.host}:${session.proxy.port}',
+    );
   }
 
   /// Cleans up old sessions
@@ -292,7 +297,8 @@ class ProxySessionManager {
     // Find sessions to remove
     for (final session in _sessionsById.values) {
       final ageInSeconds = now.difference(session.creationTime).inSeconds;
-      final idleTimeInSeconds = now.difference(session.lastAccessTime).inSeconds;
+      final idleTimeInSeconds =
+          now.difference(session.lastAccessTime).inSeconds;
 
       if (ageInSeconds > maxSessionAgeSeconds ||
           idleTimeInSeconds > maxSessionIdleSeconds ||
@@ -324,7 +330,7 @@ class ProxySessionManager {
   void invalidateSessionsForProxy(Proxy proxy) {
     final proxyKey = '${proxy.host}:${proxy.port}';
     final proxySessions = _sessionsByProxy[proxyKey]?.toList() ?? [];
-    
+
     for (final session in proxySessions) {
       session.isActive = false;
       _removeSession(session);
@@ -334,7 +340,7 @@ class ProxySessionManager {
   /// Invalidates all sessions for a domain
   void invalidateSessionsForDomain(String domain) {
     final domainSessions = _sessionsByDomain[domain]?.values.toList() ?? [];
-    
+
     for (final session in domainSessions) {
       session.isActive = false;
       _removeSession(session);
@@ -344,7 +350,7 @@ class ProxySessionManager {
   /// Invalidates all sessions
   void invalidateAllSessions() {
     final allSessions = _sessionsById.values.toList();
-    
+
     for (final session in allSessions) {
       session.isActive = false;
       _removeSession(session);

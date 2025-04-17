@@ -54,7 +54,8 @@ class ProxyRetryPolicy {
       maxBackoff: delay,
       backoffMultiplier: 1.0,
       useJitter: false,
-      retryableExceptions: retryableExceptions ??
+      retryableExceptions:
+          retryableExceptions ??
           const {
             ProxyConnectionError,
             ProxyTimeoutError,
@@ -78,7 +79,8 @@ class ProxyRetryPolicy {
       maxBackoff: maxBackoff,
       backoffMultiplier: backoffMultiplier,
       useJitter: useJitter,
-      retryableExceptions: retryableExceptions ??
+      retryableExceptions:
+          retryableExceptions ??
           const {
             ProxyConnectionError,
             ProxyTimeoutError,
@@ -142,8 +144,7 @@ class ProxyRetryPolicy {
 
     // Add jitter to avoid thundering herd problem
     final jitterFactor = 0.5 + random.nextDouble() * 0.5; // 0.5 to 1.0
-    final jitteredMs =
-        (currentBackoff.inMilliseconds * jitterFactor).toInt();
+    final jitteredMs = (currentBackoff.inMilliseconds * jitterFactor).toInt();
     return Duration(milliseconds: jitteredMs);
   }
 

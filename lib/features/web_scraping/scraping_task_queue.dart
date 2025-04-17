@@ -21,10 +21,8 @@ class ScrapingTaskQueue {
   ///
   /// [maxConcurrentTasks] is the maximum number of concurrent tasks
   /// [logger] is the logger for scraping operations
-  ScrapingTaskQueue({
-    this.maxConcurrentTasks = 5,
-    ScrapingLogger? logger,
-  }) : _logger = logger ?? ScrapingLogger();
+  ScrapingTaskQueue({this.maxConcurrentTasks = 5, ScrapingLogger? logger})
+    : _logger = logger ?? ScrapingLogger();
 
   /// Adds a task to the queue
   ///
@@ -66,15 +64,15 @@ class ScrapingTaskQueue {
 
   /// Sorts the queue by priority (higher values = higher priority)
   void _sortQueue() {
-    final sortedList = _pendingTasks.toList()
-      ..sort((a, b) {
-        // First sort by priority (higher first)
-        final priorityDiff = b.priority - a.priority;
-        if (priorityDiff != 0) return priorityDiff;
+    final sortedList =
+        _pendingTasks.toList()..sort((a, b) {
+          // First sort by priority (higher first)
+          final priorityDiff = b.priority - a.priority;
+          if (priorityDiff != 0) return priorityDiff;
 
-        // Then sort by creation time (earlier first)
-        return a.createdAt.compareTo(b.createdAt);
-      });
+          // Then sort by creation time (earlier first)
+          return a.createdAt.compareTo(b.createdAt);
+        });
 
     _pendingTasks.clear();
     _pendingTasks.addAll(sortedList);
@@ -125,9 +123,7 @@ class ScrapingTaskQueue {
     _pendingTasks.clear();
 
     for (final task in tasks) {
-      task.completer.completeError(
-        Exception('Task cancelled: queue cleared'),
-      );
+      task.completer.completeError(Exception('Task cancelled: queue cleared'));
     }
 
     _logger.info('Cleared ${tasks.length} pending tasks');

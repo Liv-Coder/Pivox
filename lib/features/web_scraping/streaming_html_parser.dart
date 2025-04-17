@@ -13,7 +13,7 @@ class StreamingHtmlParser {
 
   /// Creates a new [StreamingHtmlParser] with the given parameters
   StreamingHtmlParser({ScrapingLogger? logger})
-      : _logger = logger ?? ScrapingLogger();
+    : _logger = logger ?? ScrapingLogger();
 
   /// Parses HTML content and extracts data using CSS selectors in a streaming fashion
   ///
@@ -36,22 +36,22 @@ class StreamingHtmlParser {
 
     // Buffer to accumulate HTML chunks
     final buffer = StringBuffer();
-    
+
     // Track if we've found the opening body tag
     bool foundBody = false;
-    
+
     // Track elements we've already processed to avoid duplicates
     final processedElements = <String>{};
 
     await for (var chunk in htmlStream.transform(utf8.decoder)) {
       buffer.write(chunk);
       String html = buffer.toString();
-      
+
       // Only start processing once we have the opening body tag
       if (!foundBody && html.contains('<body')) {
         foundBody = true;
       }
-      
+
       // If we haven't found the body yet, continue accumulating
       if (!foundBody) {
         continue;
@@ -60,14 +60,14 @@ class StreamingHtmlParser {
       try {
         // Parse the accumulated HTML
         final document = html_parser.parse(html);
-        
+
         // Query the elements
         final elements = document.querySelectorAll(selector);
-        
+
         // Process each element
         for (var element in elements) {
           String value;
-          
+
           if (attribute != null) {
             value = element.attributes[attribute] ?? '';
           } else if (asText) {
@@ -75,17 +75,17 @@ class StreamingHtmlParser {
           } else {
             value = element.outerHtml;
           }
-          
+
           // Generate a unique key for this element to avoid duplicates
           final elementKey = _generateElementKey(element, value);
-          
+
           // Only yield elements we haven't processed yet
           if (!processedElements.contains(elementKey) && value.isNotEmpty) {
             processedElements.add(elementKey);
             yield value;
           }
         }
-        
+
         // If the buffer is getting too large, trim it
         if (buffer.length > chunkSize * 2) {
           // Keep only the last chunk to ensure we don't miss elements that span chunks
@@ -98,16 +98,16 @@ class StreamingHtmlParser {
         // Continue processing - don't throw an exception for a single chunk
       }
     }
-    
+
     // Process any remaining HTML
     if (buffer.isNotEmpty) {
       try {
         final document = html_parser.parse(buffer.toString());
         final elements = document.querySelectorAll(selector);
-        
+
         for (var element in elements) {
           String value;
-          
+
           if (attribute != null) {
             value = element.attributes[attribute] ?? '';
           } else if (asText) {
@@ -115,9 +115,9 @@ class StreamingHtmlParser {
           } else {
             value = element.outerHtml;
           }
-          
+
           final elementKey = _generateElementKey(element, value);
-          
+
           if (!processedElements.contains(elementKey) && value.isNotEmpty) {
             processedElements.add(elementKey);
             yield value;
@@ -132,8 +132,10 @@ class StreamingHtmlParser {
         );
       }
     }
-    
-    _logger.info('Completed streaming extraction, found ${processedElements.length} items');
+
+    _logger.info(
+      'Completed streaming extraction, found ${processedElements.length} items',
+    );
   }
 
   /// Parses HTML content and extracts structured data using CSS selectors in a streaming fashion
@@ -157,22 +159,22 @@ class StreamingHtmlParser {
 
     // Buffer to accumulate HTML chunks
     final buffer = StringBuffer();
-    
+
     // Track if we've found the opening body tag
     bool foundBody = false;
-    
+
     // Track items we've already processed to avoid duplicates
     final processedItems = <String>{};
 
     await for (var chunk in htmlStream.transform(utf8.decoder)) {
       buffer.write(chunk);
       String html = buffer.toString();
-      
+
       // Only start processing once we have the opening body tag
       if (!foundBody && html.contains('<body')) {
         foundBody = true;
       }
-      
+
       // If we haven't found the body yet, continue accumulating
       if (!foundBody) {
         continue;
@@ -181,11 +183,11 @@ class StreamingHtmlParser {
       try {
         // Parse the accumulated HTML
         final document = html_parser.parse(html);
-        
+
         // Find the maximum number of items for any selector
         int maxItems = 0;
         final elementsByField = <String, List<Element>>{};
-        
+
         selectors.forEach((field, selector) {
           final elements = document.querySelectorAll(selector);
           elementsByField[field] = elements;
@@ -193,24 +195,24 @@ class StreamingHtmlParser {
             maxItems = elements.length;
           }
         });
-        
+
         // Process each item
         for (int i = 0; i < maxItems; i++) {
           final item = <String, String>{};
           bool hasData = false;
-          
+
           selectors.forEach((field, selector) {
             final elements = elementsByField[field] ?? [];
             if (i < elements.length) {
               final element = elements[i];
               final attribute = attributes?[field];
-              
+
               if (attribute != null) {
                 item[field] = element.attributes[attribute] ?? '';
               } else {
                 item[field] = element.text.trim();
               }
-              
+
               if (item[field]!.isNotEmpty) {
                 hasData = true;
               }
@@ -218,18 +220,18 @@ class StreamingHtmlParser {
               item[field] = '';
             }
           });
-          
+
           // Only yield items that have at least some data
           if (hasData) {
             final itemKey = _generateItemKey(item);
-            
+
             if (!processedItems.contains(itemKey)) {
               processedItems.add(itemKey);
               yield item;
             }
           }
         }
-        
+
         // If the buffer is getting too large, trim it
         if (buffer.length > chunkSize * 2) {
           // Keep only the last chunk to ensure we don't miss elements that span chunks
@@ -242,16 +244,16 @@ class StreamingHtmlParser {
         // Continue processing - don't throw an exception for a single chunk
       }
     }
-    
+
     // Process any remaining HTML
     if (buffer.isNotEmpty) {
       try {
         final document = html_parser.parse(buffer.toString());
-        
+
         // Find the maximum number of items for any selector
         int maxItems = 0;
         final elementsByField = <String, List<Element>>{};
-        
+
         selectors.forEach((field, selector) {
           final elements = document.querySelectorAll(selector);
           elementsByField[field] = elements;
@@ -259,24 +261,24 @@ class StreamingHtmlParser {
             maxItems = elements.length;
           }
         });
-        
+
         // Process each item
         for (int i = 0; i < maxItems; i++) {
           final item = <String, String>{};
           bool hasData = false;
-          
+
           selectors.forEach((field, selector) {
             final elements = elementsByField[field] ?? [];
             if (i < elements.length) {
               final element = elements[i];
               final attribute = attributes?[field];
-              
+
               if (attribute != null) {
                 item[field] = element.attributes[attribute] ?? '';
               } else {
                 item[field] = element.text.trim();
               }
-              
+
               if (item[field]!.isNotEmpty) {
                 hasData = true;
               }
@@ -284,11 +286,11 @@ class StreamingHtmlParser {
               item[field] = '';
             }
           });
-          
+
           // Only yield items that have at least some data
           if (hasData) {
             final itemKey = _generateItemKey(item);
-            
+
             if (!processedItems.contains(itemKey)) {
               processedItems.add(itemKey);
               yield item;
@@ -304,8 +306,10 @@ class StreamingHtmlParser {
         );
       }
     }
-    
-    _logger.info('Completed streaming structured extraction, found ${processedItems.length} items');
+
+    _logger.info(
+      'Completed streaming structured extraction, found ${processedItems.length} items',
+    );
   }
 
   /// Generates a unique key for an element to avoid duplicates
@@ -320,8 +324,6 @@ class StreamingHtmlParser {
   /// Generates a unique key for an item to avoid duplicates
   String _generateItemKey(Map<String, String> item) {
     // Use a combination of the item's values as a key
-    return item.entries
-        .map((e) => '${e.key}=${e.value}')
-        .join(',');
+    return item.entries.map((e) => '${e.key}=${e.value}').join(',');
   }
 }

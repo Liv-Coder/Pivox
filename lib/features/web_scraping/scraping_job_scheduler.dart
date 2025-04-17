@@ -209,9 +209,10 @@ class ScrapingJob {
       url: json['url'] as String,
       interval: json['interval'] as int,
       selectors: Map<String, String>.from(json['selectors'] as Map),
-      attributes: json['attributes'] != null
-          ? Map<String, String?>.from(json['attributes'] as Map)
-          : null,
+      attributes:
+          json['attributes'] != null
+              ? Map<String, String?>.from(json['attributes'] as Map)
+              : null,
       lastRun: json['lastRun'] as int,
     );
   }
