@@ -3,14 +3,18 @@ import 'dart:convert';
 import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
 
+import '../../../core/utils/logger.dart';
 import '../proxy_management/presentation/managers/proxy_manager.dart';
 import '../http_integration/http/http_proxy_client.dart';
 import 'adaptive_scraping_strategy.dart';
-import 'site_reputation_tracker.dart';
-import 'scraping_logger.dart';
-import 'specialized_site_handlers.dart';
+import 'content/content_validator.dart';
+import 'content/structured_data_validator.dart';
 import 'robots_txt_handler.dart';
 import 'scraping_exception.dart';
+import 'scraping_logger.dart';
+import 'selector/selector_validator.dart';
+import 'site_reputation_tracker.dart';
+import 'specialized_site_handlers.dart';
 import 'streaming_html_parser.dart';
 
 /// A web scraper that uses proxies to avoid detection and blocking
@@ -55,6 +59,15 @@ class WebScraper {
   /// The streaming HTML parser
   final StreamingHtmlParser _streamingParser;
 
+  /// The content validator
+  final ContentValidator _contentValidator;
+
+  /// The structured data validator
+  final StructuredDataValidator _structuredDataValidator;
+
+  /// The selector validator
+  final SelectorValidator _selectorValidator;
+
   /// Gets the site reputation tracker
   SiteReputationTracker get reputationTracker => _reputationTracker;
 
@@ -74,6 +87,9 @@ class WebScraper {
     ScrapingLogger? logger,
     RobotsTxtHandler? robotsTxtHandler,
     StreamingHtmlParser? streamingParser,
+    ContentValidator? contentValidator,
+    StructuredDataValidator? structuredDataValidator,
+    SelectorValidator? selectorValidator,
     bool respectRobotsTxt = true,
   }) : _httpClient =
            httpClient ??
@@ -103,7 +119,14 @@ class WebScraper {
            ),
        _respectRobotsTxt = respectRobotsTxt,
        _streamingParser =
-           streamingParser ?? StreamingHtmlParser(logger: logger);
+           streamingParser ?? StreamingHtmlParser(logger: logger),
+       _contentValidator =
+           contentValidator ?? ContentValidator(logger: Logger('WebScraper')),
+       _structuredDataValidator =
+           structuredDataValidator ??
+           StructuredDataValidator(logger: Logger('WebScraper')),
+       _selectorValidator =
+           selectorValidator ?? SelectorValidator(logger: Logger('WebScraper'));
 
   /// Fetches HTML content from the given URL
   ///
@@ -215,11 +238,15 @@ class WebScraper {
   /// [selector] is the CSS selector to use
   /// [attribute] is the attribute to extract (optional)
   /// [asText] whether to extract the text content (default: true)
+  /// [validateContent] whether to validate and clean the extracted content
+  /// [validateSelector] whether to validate and repair the selector
   List<String> extractData({
     required String html,
     required String selector,
     String? attribute,
     bool asText = true,
+    bool validateContent = true,
+    bool validateSelector = true,
   }) {
     try {
       // Log the selector for debugging
@@ -230,14 +257,77 @@ class WebScraper {
 
       // Parse the HTML
       final document = html_parser.parse(html);
+      String effectiveSelector = selector;
+
+      // Validate and repair the selector if needed
+      if (validateSelector) {
+        final validationResult = _selectorValidator
+            .validateSelectorWithDocument(selector, document);
+
+        if (!validationResult.isValid &&
+            validationResult.repairedSelector != null) {
+          _logger.warning(
+            'Invalid selector: $selector. Using repaired selector: ${validationResult.repairedSelector}',
+          );
+          effectiveSelector = validationResult.repairedSelector!;
+        } else if (!validationResult.isValid) {
+          _logger.error(
+            'Invalid selector: $selector. ${validationResult.errorMessage}',
+          );
+          return [];
+        }
+      }
 
       // Query the elements
-      final elements = document.querySelectorAll(selector);
+      final elements = document.querySelectorAll(effectiveSelector);
       _logger.info('Found ${elements.length} elements matching selector');
 
-      // If no elements found, log a warning
+      // If no elements found, log a warning and suggest alternatives
       if (elements.isEmpty) {
-        _logger.warning('No elements found matching selector: $selector');
+        _logger.warning(
+          'No elements found matching selector: $effectiveSelector',
+        );
+
+        if (validateSelector) {
+          final alternatives = _selectorValidator
+              .suggestAlternativesWithDocument(effectiveSelector, document);
+
+          if (alternatives.isNotEmpty) {
+            _logger.info(
+              'Suggested alternative selectors: ${alternatives.join(', ')}',
+            );
+
+            // Try the first alternative
+            final alternativeElements = document.querySelectorAll(
+              alternatives.first,
+            );
+            if (alternativeElements.isNotEmpty) {
+              _logger.info(
+                'Found ${alternativeElements.length} elements with alternative selector: ${alternatives.first}',
+              );
+
+              // Extract data with the alternative selector
+              final alternativeResults =
+                  alternativeElements.map((element) {
+                    if (attribute != null) {
+                      return element.attributes[attribute] ?? '';
+                    } else if (asText) {
+                      return element.text.trim();
+                    } else {
+                      return element.outerHtml;
+                    }
+                  }).toList();
+
+              // Validate and clean the content if needed
+              if (validateContent) {
+                return _contentValidator.cleanContentList(alternativeResults);
+              }
+
+              return alternativeResults;
+            }
+          }
+        }
+
         return [];
       }
 
@@ -264,6 +354,12 @@ class WebScraper {
           }).toList();
 
       _logger.info('Extracted ${results.length} items');
+
+      // Validate and clean the content if needed
+      if (validateContent) {
+        return _contentValidator.cleanContentList(results);
+      }
+
       return results;
     } catch (e) {
       _logger.error('Failed to extract data: $e');
@@ -280,10 +376,16 @@ class WebScraper {
   /// [html] is the HTML content to parse
   /// [selectors] is a map of field names to CSS selectors
   /// [attributes] is a map of field names to attributes to extract (optional)
+  /// [validateContent] whether to validate and clean the extracted content
+  /// [validateSelectors] whether to validate and repair the selectors
+  /// [requiredFields] fields that must be present and non-empty
   List<Map<String, String>> extractStructuredData({
     required String html,
     required Map<String, String> selectors,
     Map<String, String?>? attributes,
+    bool validateContent = true,
+    bool validateSelectors = true,
+    List<String> requiredFields = const [],
   }) {
     try {
       // Log the selectors for debugging
@@ -296,17 +398,53 @@ class WebScraper {
 
       // Parse the HTML
       final document = html_parser.parse(html);
+      final effectiveSelectors = <String, String>{};
+
+      // Validate and repair selectors if needed
+      if (validateSelectors) {
+        final validationResults = _selectorValidator
+            .validateSelectorsWithDocument(selectors, document);
+
+        for (final entry in validationResults.entries) {
+          final field = entry.key;
+          final result = entry.value;
+
+          if (!result.isValid && result.repairedSelector != null) {
+            _logger.warning(
+              'Invalid selector for field "$field": ${result.originalSelector}. '
+              'Using repaired selector: ${result.repairedSelector}',
+            );
+            effectiveSelectors[field] = result.repairedSelector!;
+          } else if (!result.isValid) {
+            _logger.error(
+              'Invalid selector for field "$field": ${result.originalSelector}. '
+              '${result.errorMessage}',
+            );
+            // Use the original selector anyway, it might still work partially
+            effectiveSelectors[field] = result.originalSelector;
+          } else {
+            effectiveSelectors[field] = result.originalSelector;
+          }
+        }
+      } else {
+        effectiveSelectors.addAll(selectors);
+      }
+
       final result = <Map<String, String>>[];
 
       // Find the maximum number of items for any selector
       int maxItems = 0;
-      selectors.forEach((field, selector) {
-        final elements = document.querySelectorAll(selector);
-        _logger.info(
-          'Found ${elements.length} elements for field "$field" with selector "$selector"',
-        );
-        if (elements.length > maxItems) {
-          maxItems = elements.length;
+      effectiveSelectors.forEach((field, selector) {
+        try {
+          final elements = document.querySelectorAll(selector);
+          _logger.info(
+            'Found ${elements.length} elements for field "$field" with selector "$selector"',
+          );
+          if (elements.length > maxItems) {
+            maxItems = elements.length;
+          }
+        } catch (e) {
+          _logger.warning('Error querying selector for field "$field": $e');
         }
       });
 
@@ -322,39 +460,53 @@ class WebScraper {
       for (int i = 0; i < maxItems; i++) {
         final item = <String, String>{};
 
-        selectors.forEach((field, selector) {
-          final elements = document.querySelectorAll(selector);
-          if (i < elements.length) {
-            final element = elements[i];
-            final attribute = attributes?[field];
+        effectiveSelectors.forEach((field, selector) {
+          try {
+            final elements = document.querySelectorAll(selector);
+            if (i < elements.length) {
+              final element = elements[i];
+              final attribute = attributes?[field];
 
-            if (attribute != null) {
-              final value = element.attributes[attribute] ?? '';
-              if (value.isEmpty) {
-                _logger.warning(
-                  'Attribute "$attribute" not found or empty for field "$field" in item $i',
-                );
+              if (attribute != null) {
+                final value = element.attributes[attribute] ?? '';
+                if (value.isEmpty) {
+                  _logger.warning(
+                    'Attribute "$attribute" not found or empty for field "$field" in item $i',
+                  );
+                }
+                item[field] = value;
+              } else {
+                final text = element.text.trim();
+                if (text.isEmpty) {
+                  _logger.warning(
+                    'Text content is empty for field "$field" in item $i',
+                  );
+                }
+                item[field] = text;
               }
-              item[field] = value;
             } else {
-              final text = element.text.trim();
-              if (text.isEmpty) {
-                _logger.warning(
-                  'Text content is empty for field "$field" in item $i',
-                );
-              }
-              item[field] = text;
+              _logger.warning('No element found for field "$field" in item $i');
+              item[field] = '';
             }
-          } else {
-            _logger.warning('No element found for field "$field" in item $i');
+          } catch (e) {
+            _logger.warning('Error extracting field "$field" in item $i: $e');
             item[field] = '';
           }
         });
 
-        result.add(item);
+        // Only add the item if it has at least one non-empty field
+        if (item.values.any((value) => value.isNotEmpty)) {
+          result.add(item);
+        }
       }
 
       _logger.info('Extracted ${result.length} structured data items');
+
+      // Validate and clean the content if needed
+      if (validateContent) {
+        return _structuredDataValidator.cleanStructuredDataList(result);
+      }
+
       return result;
     } catch (e) {
       _logger.error('Failed to extract structured data: $e');

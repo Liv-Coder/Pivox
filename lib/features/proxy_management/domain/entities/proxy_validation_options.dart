@@ -2,22 +2,28 @@
 class ProxyValidationOptions {
   /// The URL to use for testing the proxy
   final String? testUrl;
-  
+
   /// The timeout in milliseconds
   final int timeout;
-  
+
   /// Whether to update the proxy's score based on the validation result
   final bool updateScore;
-  
+
   /// Whether to validate HTTPS support
   final bool validateHttps;
-  
+
   /// Whether to validate SOCKS support
   final bool validateSocks;
-  
+
   /// Whether to validate WebSocket support
   final bool validateWebsockets;
-  
+
+  /// Whether to log validation errors
+  final bool logErrors;
+
+  /// Whether to categorize errors by type
+  final bool categorizeErrors;
+
   /// Creates a new [ProxyValidationOptions] with the given parameters
   const ProxyValidationOptions({
     this.testUrl,
@@ -26,8 +32,10 @@ class ProxyValidationOptions {
     this.validateHttps = false,
     this.validateSocks = false,
     this.validateWebsockets = false,
+    this.logErrors = true,
+    this.categorizeErrors = true,
   });
-  
+
   /// Creates a copy of this [ProxyValidationOptions] with the given parameters
   ProxyValidationOptions copyWith({
     String? testUrl,
@@ -36,6 +44,8 @@ class ProxyValidationOptions {
     bool? validateHttps,
     bool? validateSocks,
     bool? validateWebsockets,
+    bool? logErrors,
+    bool? categorizeErrors,
   }) {
     return ProxyValidationOptions(
       testUrl: testUrl ?? this.testUrl,
@@ -44,6 +54,8 @@ class ProxyValidationOptions {
       validateHttps: validateHttps ?? this.validateHttps,
       validateSocks: validateSocks ?? this.validateSocks,
       validateWebsockets: validateWebsockets ?? this.validateWebsockets,
+      logErrors: logErrors ?? this.logErrors,
+      categorizeErrors: categorizeErrors ?? this.categorizeErrors,
     );
   }
 }

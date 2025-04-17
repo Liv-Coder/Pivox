@@ -3,11 +3,15 @@ import 'package:http/http.dart' as http;
 
 import '../../../../core/config/proxy_source_config.dart';
 import '../../../../core/errors/exceptions.dart';
+import '../../../../core/utils/logger.dart';
 import '../../../../core/utils/parallel_processor.dart';
 import '../../domain/entities/proxy.dart';
 import '../../domain/entities/proxy_filter_options.dart';
 import '../../domain/entities/proxy_protocol.dart';
 import '../../domain/entities/proxy_validation_options.dart';
+import '../../domain/error/proxy_error.dart';
+import '../../domain/error/proxy_error_detector.dart';
+
 import '../../domain/repositories/proxy_repository.dart';
 import '../../domain/services/proxy_analytics_service.dart';
 import 'socks_proxy_validator.dart';
@@ -38,6 +42,9 @@ class ProxyRepositoryImpl implements ProxyRepository {
   /// Analytics service for tracking proxy usage
   final ProxyAnalyticsService? analyticsService;
 
+  /// Logger for logging proxy operations
+  final Logger _logger;
+
   /// Creates a new [ProxyRepositoryImpl] with the given dependencies
   ProxyRepositoryImpl({
     required this.remoteDataSource,
@@ -46,9 +53,11 @@ class ProxyRepositoryImpl implements ProxyRepository {
     this.maxConcurrentValidations = 5,
     this.sourceConfig = const ProxySourceConfig(),
     this.analyticsService,
+    Logger? logger,
   }) : _parallelProcessor = ParallelProcessor<Proxy, bool>(
          maxConcurrency: maxConcurrentValidations,
-       );
+       ),
+       _logger = logger ?? Logger('ProxyRepository');
 
   @override
   Future<List<Proxy>> fetchProxies({
@@ -193,12 +202,19 @@ class ProxyRepositoryImpl implements ProxyRepository {
     final startTime = DateTime.now().millisecondsSinceEpoch;
     bool success = false;
     int? responseTime;
+    ProxyError? proxyError;
 
     try {
       // Use the appropriate validator based on the proxy protocol
       if (proxy.protocol.isSocks) {
         // Use SOCKS validator for SOCKS proxies
-        success = await SocksProxyValidator.validate(proxy, options: options);
+        try {
+          success = await SocksProxyValidator.validate(proxy, options: options);
+        } catch (e) {
+          // Create a specific proxy error for SOCKS validation
+          proxyError = ProxyErrorDetector.createProxyError(e, proxy);
+          throw proxyError;
+        }
       } else {
         // Use HTTP client for HTTP/HTTPS proxies
         final url = options.testUrl ?? 'https://www.google.com';
@@ -270,6 +286,19 @@ class ProxyRepositoryImpl implements ProxyRepository {
 
       return success;
     } catch (e) {
+      // Create a proxy error if one wasn't already created
+      proxyError ??= ProxyErrorDetector.createProxyError(
+        e,
+        proxy,
+        targetUrl: options.testUrl,
+      );
+
+      // Log the error with detailed information
+      if (options.logErrors) {
+        // Use a logger instead of print
+        _logger.warning('Proxy validation error: ${proxyError.toString()}');
+      }
+
       // Track analytics for failed request
       if (analyticsService != null) {
         await analyticsService!.recordRequest(proxy, false, null, 'validation');
