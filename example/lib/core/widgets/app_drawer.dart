@@ -199,7 +199,7 @@ class AppDrawer extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Text(
-        'Version 1.2.0',
+        'Version 1.1.0',
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
           color: Theme.of(context).colorScheme.onSurface.withAlpha(128),
         ),
@@ -235,7 +235,7 @@ class AppDrawer extends StatelessWidget {
                 _buildFeatureItem(context, 'Headless browser integration'),
                 const SizedBox(height: AppSpacing.md),
                 Text(
-                  'Version: 1.2.0',
+                  'Version: 1.1.0',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
