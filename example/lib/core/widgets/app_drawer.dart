@@ -64,6 +64,7 @@ class AppDrawer extends StatelessWidget {
                   title: 'Analytics',
                   index: 4,
                 ),
+
                 const Divider(),
                 ListTile(
                   leading: Icon(
