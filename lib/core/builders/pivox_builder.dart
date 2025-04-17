@@ -21,6 +21,10 @@ import '../../features/web_scraping/headless_browser/headless_browser_config.dar
 import '../../features/web_scraping/headless_browser/headless_browser_factory.dart';
 import '../../features/web_scraping/headless_browser/headless_browser_service.dart';
 import '../../features/web_scraping/headless_browser/specialized_headless_handlers.dart';
+import '../factories/pivox_factory.dart';
+import '../../features/web_scraping/web_scraper.dart';
+import '../../features/web_scraping/advanced_web_scraper.dart';
+import '../../features/web_scraping/concurrent_web_scraper.dart';
 
 /// A builder class for simplifying Pivox initialization
 class PivoxBuilder {
@@ -327,5 +331,23 @@ class Pivox {
   static Future<SpecializedHeadlessHandlers>
   createSpecializedHeadlessHandlers() async {
     return HeadlessBrowserFactory.createSpecializedHandlers();
+  }
+
+  /// Creates a web scraper with default settings
+  static Future<WebScraper> createWebScraper() async {
+    final proxyManager = await createProxyManager();
+    return PivoxFactory.createWebScraper(proxyManager: proxyManager);
+  }
+
+  /// Creates an advanced web scraper with default settings
+  static Future<AdvancedWebScraper> createAdvancedWebScraper() async {
+    final proxyManager = await createProxyManager();
+    return PivoxFactory.createAdvancedWebScraper(proxyManager: proxyManager);
+  }
+
+  /// Creates a concurrent web scraper with default settings
+  static Future<ConcurrentWebScraper> createConcurrentWebScraper() async {
+    final proxyManager = await createProxyManager();
+    return PivoxFactory.createConcurrentWebScraper(proxyManager: proxyManager);
   }
 }

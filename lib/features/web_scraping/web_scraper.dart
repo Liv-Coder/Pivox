@@ -9,6 +9,9 @@ import 'adaptive_scraping_strategy.dart';
 import 'site_reputation_tracker.dart';
 import 'scraping_logger.dart';
 import 'specialized_site_handlers.dart';
+import 'robots_txt_handler.dart';
+import 'scraping_exception.dart';
+import 'streaming_html_parser.dart';
 
 /// A web scraper that uses proxies to avoid detection and blocking
 class WebScraper {
@@ -43,6 +46,15 @@ class WebScraper {
   final SpecializedSiteHandlerRegistry _specializedHandlers =
       SpecializedSiteHandlerRegistry();
 
+  /// The robots.txt handler
+  final RobotsTxtHandler _robotsTxtHandler;
+
+  /// Whether to respect robots.txt rules
+  final bool _respectRobotsTxt;
+
+  /// The streaming HTML parser
+  final StreamingHtmlParser _streamingParser;
+
   /// Gets the site reputation tracker
   SiteReputationTracker get reputationTracker => _reputationTracker;
 
@@ -60,6 +72,9 @@ class WebScraper {
     AdaptiveScrapingStrategy? adaptiveStrategy,
     SiteReputationTracker? reputationTracker,
     ScrapingLogger? logger,
+    RobotsTxtHandler? robotsTxtHandler,
+    StreamingHtmlParser? streamingParser,
+    bool respectRobotsTxt = true,
   }) : _httpClient =
            httpClient ??
            ProxyHttpClient(
@@ -77,7 +92,18 @@ class WebScraper {
        _logger = logger ?? ScrapingLogger(),
        _adaptiveStrategy =
            adaptiveStrategy ??
-           AdaptiveScrapingStrategy(reputationTracker: reputationTracker);
+           AdaptiveScrapingStrategy(reputationTracker: reputationTracker),
+       _robotsTxtHandler =
+           robotsTxtHandler ??
+           RobotsTxtHandler(
+             proxyManager: proxyManager,
+             logger: logger,
+             defaultUserAgent: defaultUserAgent,
+             respectRobotsTxt: respectRobotsTxt,
+           ),
+       _respectRobotsTxt = respectRobotsTxt,
+       _streamingParser =
+           streamingParser ?? StreamingHtmlParser(logger: logger);
 
   /// Fetches HTML content from the given URL
   ///
@@ -85,11 +111,13 @@ class WebScraper {
   /// [headers] are additional headers to send with the request
   /// [timeout] is the timeout for the request in milliseconds
   /// [retries] is the number of retry attempts
+  /// [ignoreRobotsTxt] whether to ignore robots.txt rules (default: false)
   Future<String> fetchHtml({
     required String url,
     Map<String, String>? headers,
     int? timeout,
     int? retries,
+    bool ignoreRobotsTxt = false,
   }) async {
     final effectiveHeaders = {
       'User-Agent': _defaultUserAgent,
@@ -99,6 +127,21 @@ class WebScraper {
 
     final effectiveTimeout = timeout ?? _defaultTimeout;
     final effectiveRetries = retries ?? _maxRetries;
+
+    // Check robots.txt if enabled and not explicitly ignored
+    if (_respectRobotsTxt && !ignoreRobotsTxt) {
+      final userAgent = effectiveHeaders['User-Agent'] ?? _defaultUserAgent;
+      final isAllowed = await _robotsTxtHandler.isAllowed(url, userAgent);
+
+      if (!isAllowed) {
+        _logger.warning('URL not allowed by robots.txt: $url');
+        throw ScrapingException.robotsTxt(
+          'URL not allowed by robots.txt',
+          url: url,
+          isRetryable: false,
+        );
+      }
+    }
 
     return _fetchWithRetry(
       url: url,
@@ -114,11 +157,13 @@ class WebScraper {
   /// [headers] are additional headers to send with the request
   /// [timeout] is the timeout for the request in milliseconds
   /// [retries] is the number of retry attempts
+  /// [ignoreRobotsTxt] whether to ignore robots.txt rules (default: false)
   Future<Map<String, dynamic>> fetchJson({
     required String url,
     Map<String, String>? headers,
     int? timeout,
     int? retries,
+    bool ignoreRobotsTxt = false,
   }) async {
     final effectiveHeaders = {
       'User-Agent': _defaultUserAgent,
@@ -130,6 +175,21 @@ class WebScraper {
     final effectiveTimeout = timeout ?? _defaultTimeout;
     final effectiveRetries = retries ?? _maxRetries;
 
+    // Check robots.txt if enabled and not explicitly ignored
+    if (_respectRobotsTxt && !ignoreRobotsTxt) {
+      final userAgent = effectiveHeaders['User-Agent'] ?? _defaultUserAgent;
+      final isAllowed = await _robotsTxtHandler.isAllowed(url, userAgent);
+
+      if (!isAllowed) {
+        _logger.warning('URL not allowed by robots.txt: $url');
+        throw ScrapingException.robotsTxt(
+          'URL not allowed by robots.txt',
+          url: url,
+          isRetryable: false,
+        );
+      }
+    }
+
     final response = await _fetchWithRetry(
       url: url,
       headers: effectiveHeaders,
@@ -140,7 +200,12 @@ class WebScraper {
     try {
       return json.decode(response) as Map<String, dynamic>;
     } catch (e) {
-      throw ScrapingException('Failed to parse JSON response: $e');
+      throw ScrapingException.parsing(
+        'Failed to parse JSON response',
+        originalException: e,
+        url: url,
+        isRetryable: false,
+      );
     }
   }
 
@@ -202,7 +267,11 @@ class WebScraper {
       return results;
     } catch (e) {
       _logger.error('Failed to extract data: $e');
-      throw ScrapingException('Failed to extract data: $e');
+      throw ScrapingException.parsing(
+        'Failed to extract data',
+        originalException: e,
+        isRetryable: false,
+      );
     }
   }
 
@@ -289,7 +358,11 @@ class WebScraper {
       return result;
     } catch (e) {
       _logger.error('Failed to extract structured data: $e');
-      throw ScrapingException('Failed to extract structured data: $e');
+      throw ScrapingException.parsing(
+        'Failed to extract structured data',
+        originalException: e,
+        isRetryable: false,
+      );
     }
   }
 
@@ -357,6 +430,8 @@ class WebScraper {
           final proxy = proxyManager.getNextProxy(
             validated: strategy.validateProxies,
           );
+          // Set the proxy in the HTTP client
+          _httpClient.setProxy(proxy);
           _logger.proxy('Using proxy: ${proxy.ip}:${proxy.port}');
         }
 
@@ -403,16 +478,58 @@ class WebScraper {
             return body;
           } catch (e) {
             _logger.error('Error reading response body: $e');
-            throw ScrapingException('Error reading response body: $e');
+            throw ScrapingException.network(
+              'Error reading response body',
+              originalException: e,
+              url: url,
+              isRetryable: true,
+            );
           }
         } else {
           // Record failure with the status code
-          final errorMessage = 'HTTP error: ${response.statusCode}';
+          final statusCode = response.statusCode;
+          final errorMessage = 'HTTP error: $statusCode';
           lastErrorMessage = errorMessage;
           _adaptiveStrategy.recordFailure(url, errorMessage);
           _logger.error(errorMessage);
 
-          throw ScrapingException(errorMessage);
+          // Create appropriate exception based on status code
+          if (statusCode == 429) {
+            throw ScrapingException.rateLimit(
+              'Rate limit exceeded',
+              url: url,
+              statusCode: statusCode,
+              isRetryable: true,
+            );
+          } else if (statusCode == 403) {
+            throw ScrapingException.permission(
+              'Access forbidden',
+              url: url,
+              statusCode: statusCode,
+              isRetryable: false,
+            );
+          } else if (statusCode == 401) {
+            throw ScrapingException.authentication(
+              'Authentication required',
+              url: url,
+              statusCode: statusCode,
+              isRetryable: false,
+            );
+          } else if (statusCode >= 500) {
+            throw ScrapingException.http(
+              'Server error',
+              url: url,
+              statusCode: statusCode,
+              isRetryable: true,
+            );
+          } else {
+            throw ScrapingException.http(
+              errorMessage,
+              url: url,
+              statusCode: statusCode,
+              isRetryable: statusCode >= 500 || statusCode == 429,
+            );
+          }
         }
       } catch (e) {
         // Record the error message
@@ -463,23 +580,278 @@ class WebScraper {
         'Failed to fetch URL after $effectiveRetries attempts';
     _logger.error(finalErrorMessage);
 
-    throw lastException ?? ScrapingException(finalErrorMessage);
+    if (lastException is ScrapingException) {
+      throw lastException;
+    } else {
+      throw ScrapingException.network(
+        finalErrorMessage,
+        originalException: lastException,
+        url: url,
+        isRetryable: false,
+      );
+    }
   }
 
-  /// Closes the HTTP client
+  /// Fetches HTML content as a stream from the given URL
+  ///
+  /// [url] is the URL to fetch
+  /// [headers] are additional headers to send with the request
+  /// [timeout] is the timeout for the request in milliseconds
+  /// [retries] is the number of retry attempts
+  /// [ignoreRobotsTxt] whether to ignore robots.txt rules (default: false)
+  Future<Stream<List<int>>> fetchHtmlStream({
+    required String url,
+    Map<String, String>? headers,
+    int? timeout,
+    int? retries,
+    bool ignoreRobotsTxt = false,
+  }) async {
+    final effectiveHeaders = {
+      'User-Agent': _defaultUserAgent,
+      ..._defaultHeaders,
+      ...?headers,
+    };
+
+    final effectiveTimeout = timeout ?? _defaultTimeout;
+    final effectiveRetries = retries ?? _maxRetries;
+
+    // Check robots.txt if enabled and not explicitly ignored
+    if (_respectRobotsTxt && !ignoreRobotsTxt) {
+      final userAgent = effectiveHeaders['User-Agent'] ?? _defaultUserAgent;
+      final isAllowed = await _robotsTxtHandler.isAllowed(url, userAgent);
+
+      if (!isAllowed) {
+        _logger.warning('URL not allowed by robots.txt: $url');
+        throw ScrapingException.robotsTxt(
+          'URL not allowed by robots.txt',
+          url: url,
+          isRetryable: false,
+        );
+      }
+    }
+
+    // Get the optimal strategy for this URL
+    final strategy = _adaptiveStrategy.getStrategyForUrl(url);
+
+    // Use the strategy parameters or the provided ones
+    final effectiveRetries2 =
+        strategy.retries > effectiveRetries
+            ? strategy.retries
+            : effectiveRetries;
+    final effectiveTimeout2 =
+        strategy.timeout > effectiveTimeout
+            ? strategy.timeout
+            : effectiveTimeout;
+    final effectiveHeaders2 = Map<String, String>.from(effectiveHeaders);
+    effectiveHeaders2.addAll(strategy.headers);
+
+    _logger.info(
+      'Using strategy for stream: retries=$effectiveRetries2, timeout=${effectiveTimeout2}ms',
+    );
+
+    // Ensure URL has proper scheme
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://$url';
+      _logger.info('URL scheme added: $url');
+    }
+
+    // Check if we have a specialized handler for this URL
+    if (_specializedHandlers.hasHandlerForUrl(url)) {
+      _logger.info('Using specialized handler for URL stream: $url');
+      try {
+        final handler = _specializedHandlers.getHandlerForUrl(url)!;
+        final html = await handler.fetchHtml(
+          url: url,
+          headers: effectiveHeaders2,
+          timeout: effectiveTimeout2,
+          logger: _logger,
+        );
+
+        // Convert the HTML string to a stream
+        return Stream.value(utf8.encode(html));
+      } catch (e) {
+        _logger.error('Specialized handler failed for stream: $e');
+        _logger.info('Falling back to standard fetching mechanism for stream');
+        // Fall through to standard mechanism
+      }
+    }
+
+    // Get a fresh proxy
+    final proxy = proxyManager.getNextProxy(
+      validated: strategy.validateProxies,
+    );
+    // Set the proxy in the HTTP client
+    _httpClient.setProxy(proxy);
+    _logger.proxy('Using proxy for stream: ${proxy.ip}:${proxy.port}');
+
+    // Create a request
+    final request = http.Request('GET', Uri.parse(url));
+    request.headers.addAll(effectiveHeaders2);
+    _logger.request('Sending stream request to $url');
+
+    try {
+      // Send the request
+      final response = await _httpClient
+          .send(request)
+          .timeout(Duration(milliseconds: effectiveTimeout2));
+
+      // Check if the response is successful
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        // Record success for this URL
+        _adaptiveStrategy.recordSuccess(url);
+        _logger.success('Stream request successful');
+
+        // Return the response stream
+        return response.stream;
+      } else {
+        // Handle HTTP error
+        final statusCode = response.statusCode;
+        final errorMessage = 'HTTP error: $statusCode';
+        _adaptiveStrategy.recordFailure(url, errorMessage);
+        _logger.error(errorMessage);
+
+        // Create appropriate exception based on status code
+        if (statusCode == 429) {
+          throw ScrapingException.rateLimit(
+            'Rate limit exceeded',
+            url: url,
+            statusCode: statusCode,
+            isRetryable: true,
+          );
+        } else if (statusCode == 403) {
+          throw ScrapingException.permission(
+            'Access forbidden',
+            url: url,
+            statusCode: statusCode,
+            isRetryable: false,
+          );
+        } else if (statusCode == 401) {
+          throw ScrapingException.authentication(
+            'Authentication required',
+            url: url,
+            statusCode: statusCode,
+            isRetryable: false,
+          );
+        } else if (statusCode >= 500) {
+          throw ScrapingException.http(
+            'Server error',
+            url: url,
+            statusCode: statusCode,
+            isRetryable: true,
+          );
+        } else {
+          throw ScrapingException.http(
+            errorMessage,
+            url: url,
+            statusCode: statusCode,
+            isRetryable: statusCode >= 500 || statusCode == 429,
+          );
+        }
+      }
+    } catch (e) {
+      // Record the error
+      _adaptiveStrategy.recordFailure(url, e.toString());
+      _logger.error('Stream error: ${e.toString()}');
+
+      if (e is ScrapingException) {
+        rethrow;
+      } else {
+        throw ScrapingException.network(
+          'Failed to fetch URL stream',
+          originalException: e,
+          url: url,
+          isRetryable: true,
+        );
+      }
+    }
+  }
+
+  /// Extracts data from a URL using streaming for memory efficiency
+  ///
+  /// [url] is the URL to fetch
+  /// [selector] is the CSS selector to use
+  /// [attribute] is the attribute to extract (optional)
+  /// [asText] whether to extract the text content (default: true)
+  /// [headers] are additional headers to send with the request
+  /// [timeout] is the timeout for the request in milliseconds
+  /// [retries] is the number of retry attempts
+  /// [ignoreRobotsTxt] whether to ignore robots.txt rules (default: false)
+  /// [chunkSize] is the size of each chunk to process (default: 1024 * 1024 bytes)
+  Stream<String> extractDataStream({
+    required String url,
+    required String selector,
+    String? attribute,
+    bool asText = true,
+    Map<String, String>? headers,
+    int? timeout,
+    int? retries,
+    bool ignoreRobotsTxt = false,
+    int chunkSize = 1024 * 1024, // 1MB chunks
+  }) async* {
+    final htmlStream = await fetchHtmlStream(
+      url: url,
+      headers: headers,
+      timeout: timeout,
+      retries: retries,
+      ignoreRobotsTxt: ignoreRobotsTxt,
+    );
+
+    final dataStream = _streamingParser.extractDataStream(
+      htmlStream: htmlStream,
+      selector: selector,
+      attribute: attribute,
+      asText: asText,
+      chunkSize: chunkSize,
+    );
+
+    await for (final item in dataStream) {
+      yield item;
+    }
+  }
+
+  /// Extracts structured data from a URL using streaming for memory efficiency
+  ///
+  /// [url] is the URL to fetch
+  /// [selectors] is a map of field names to CSS selectors
+  /// [attributes] is a map of field names to attributes to extract (optional)
+  /// [headers] are additional headers to send with the request
+  /// [timeout] is the timeout for the request in milliseconds
+  /// [retries] is the number of retry attempts
+  /// [ignoreRobotsTxt] whether to ignore robots.txt rules (default: false)
+  /// [chunkSize] is the size of each chunk to process (default: 1024 * 1024 bytes)
+  Stream<Map<String, String>> extractStructuredDataStream({
+    required String url,
+    required Map<String, String> selectors,
+    Map<String, String?>? attributes,
+    Map<String, String>? headers,
+    int? timeout,
+    int? retries,
+    bool ignoreRobotsTxt = false,
+    int chunkSize = 1024 * 1024, // 1MB chunks
+  }) async* {
+    final htmlStream = await fetchHtmlStream(
+      url: url,
+      headers: headers,
+      timeout: timeout,
+      retries: retries,
+      ignoreRobotsTxt: ignoreRobotsTxt,
+    );
+
+    final dataStream = _streamingParser.extractStructuredDataStream(
+      htmlStream: htmlStream,
+      selectors: selectors,
+      attributes: attributes,
+      chunkSize: chunkSize,
+    );
+
+    await for (final item in dataStream) {
+      yield item;
+    }
+  }
+
+  /// Closes the HTTP client and other resources
   void close() {
     _httpClient.close();
+    _robotsTxtHandler.close();
   }
-}
-
-/// Exception thrown when scraping fails
-class ScrapingException implements Exception {
-  /// The error message
-  final String message;
-
-  /// Creates a new [ScrapingException] with the given message
-  ScrapingException(this.message);
-
-  @override
-  String toString() => 'ScrapingException: $message';
 }

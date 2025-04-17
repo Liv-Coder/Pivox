@@ -7,8 +7,7 @@ import 'package:pivox/features/proxy_management/domain/entities/proxy.dart';
 import 'package:pivox/features/proxy_management/platform/android_proxy_setter.dart';
 import 'package:pivox/features/web_scraping/headless_browser/headless_browser_config.dart';
 import 'package:pivox/features/web_scraping/scraping_logger.dart';
-import 'package:pivox/features/web_scraping/web_scraper.dart'
-    show ScrapingException;
+import 'package:pivox/features/web_scraping/scraping_exception.dart';
 
 /// A headless browser implementation for web scraping
 class HeadlessBrowser {
@@ -40,7 +39,10 @@ class HeadlessBrowser {
   /// Initializes the headless browser
   Future<void> initialize() async {
     if (_isDisposed) {
-      throw ScrapingException('Cannot initialize a disposed browser');
+      throw ScrapingException.validation(
+        'Cannot initialize a disposed browser',
+        isRetryable: false,
+      );
     }
 
     if (_headlessWebView != null) {
@@ -68,8 +70,9 @@ class HeadlessBrowser {
           isError: true,
         );
         _pageLoadCompleter?.completeError(
-          ScrapingException(
+          ScrapingException.network(
             'Failed to load page: ${error.description} (${error.type})',
+            isRetryable: true,
           ),
         );
       },
@@ -79,8 +82,12 @@ class HeadlessBrowser {
           isError: true,
         );
         _pageLoadCompleter?.completeError(
-          ScrapingException(
+          ScrapingException.http(
             'HTTP error: ${errorResponse.statusCode} ${errorResponse.reasonPhrase}',
+            statusCode: errorResponse.statusCode,
+            isRetryable:
+                (errorResponse.statusCode ?? 0) >= 500 ||
+                errorResponse.statusCode == 429,
           ),
         );
       },
@@ -160,7 +167,10 @@ class HeadlessBrowser {
   /// Checks if the browser is disposed and throws an exception if it is
   void _checkDisposed() {
     if (_isDisposed) {
-      throw ScrapingException('Browser has been disposed');
+      throw ScrapingException.validation(
+        'Browser has been disposed',
+        isRetryable: false,
+      );
     }
   }
 
@@ -177,7 +187,10 @@ class HeadlessBrowser {
     }
 
     if (_controller == null) {
-      throw ScrapingException('Failed to initialize headless browser');
+      throw ScrapingException.validation(
+        'Failed to initialize headless browser',
+        isRetryable: false,
+      );
     }
 
     // Reset page load completer
@@ -216,7 +229,10 @@ class HeadlessBrowser {
     _checkDisposed();
 
     if (_controller == null) {
-      throw ScrapingException('Browser not initialized');
+      throw ScrapingException.validation(
+        'Browser not initialized',
+        isRetryable: false,
+      );
     }
 
     final html = await _controller!.getHtml();
@@ -228,7 +244,10 @@ class HeadlessBrowser {
     _checkDisposed();
 
     if (_controller == null) {
-      throw ScrapingException('Browser not initialized');
+      throw ScrapingException.validation(
+        'Browser not initialized',
+        isRetryable: false,
+      );
     }
 
     try {
@@ -236,7 +255,11 @@ class HeadlessBrowser {
       return result;
     } catch (e) {
       _log('Error executing script: $e', isError: true);
-      throw ScrapingException('Failed to execute script: $e');
+      throw ScrapingException.parsing(
+        'Failed to execute script',
+        originalException: e,
+        isRetryable: false,
+      );
     }
   }
 
@@ -248,7 +271,10 @@ class HeadlessBrowser {
     _checkDisposed();
 
     if (_controller == null) {
-      throw ScrapingException('Browser not initialized');
+      throw ScrapingException.validation(
+        'Browser not initialized',
+        isRetryable: false,
+      );
     }
 
     final startTime = DateTime.now();
@@ -276,7 +302,10 @@ class HeadlessBrowser {
     _checkDisposed();
 
     if (_controller == null) {
-      throw ScrapingException('Browser not initialized');
+      throw ScrapingException.validation(
+        'Browser not initialized',
+        isRetryable: false,
+      );
     }
 
     final result = <String, dynamic>{};
@@ -332,7 +361,10 @@ class HeadlessBrowser {
     _checkDisposed();
 
     if (_controller == null) {
-      throw ScrapingException('Browser not initialized');
+      throw ScrapingException.validation(
+        'Browser not initialized',
+        isRetryable: false,
+      );
     }
 
     try {
@@ -399,7 +431,10 @@ class HeadlessBrowser {
     try {
       // Cancel any pending page load
       _pageLoadCompleter?.completeError(
-        ScrapingException('Browser disposed during page load'),
+        ScrapingException.validation(
+          'Browser disposed during page load',
+          isRetryable: false,
+        ),
       );
 
       // Clear references first

@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import 'web_scraper.dart';
 import 'dynamic_user_agent_manager.dart';
+import 'scraping_exception.dart';
 
 /// Extension methods for WebScraper to enhance error handling and retry logic
 extension WebScraperExtension on WebScraper {
@@ -206,7 +207,11 @@ extension WebScraperExtension on WebScraper {
     }
 
     // If all approaches fail, throw an exception
-    throw ScrapingException('All approaches failed for problematic site: $url');
+    throw ScrapingException.network(
+      'All approaches failed for problematic site',
+      url: url,
+      isRetryable: false,
+    );
   }
 
   /// Truncates a user agent string for logging

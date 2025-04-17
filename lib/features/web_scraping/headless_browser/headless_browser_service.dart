@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart' show kDebugMode, Uint8List;
 import 'package:pivox/features/proxy_management/domain/entities/proxy.dart';
 import 'package:pivox/features/proxy_management/domain/entities/proxy_filter_options.dart';
 import 'package:pivox/features/proxy_management/presentation/managers/proxy_manager.dart';
-import 'package:pivox/features/web_scraping/advanced_web_scraper.dart';
+import 'package:pivox/features/web_scraping/scraping_exception.dart';
 import 'package:pivox/features/web_scraping/dynamic_user_agent_manager.dart';
 import 'package:pivox/features/web_scraping/headless_browser/headless_browser.dart';
 import 'package:pivox/features/web_scraping/headless_browser/headless_browser_config.dart';
@@ -149,7 +149,11 @@ class HeadlessBrowserService {
         );
 
         if (!success) {
-          throw ScrapingException('Failed to load page: $url');
+          throw ScrapingException.network(
+            'Failed to load page',
+            url: url,
+            isRetryable: true,
+          );
         }
 
         // Get HTML content

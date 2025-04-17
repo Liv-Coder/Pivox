@@ -44,9 +44,11 @@ export 'features/http_integration/http/http_proxy_client.dart';
 export 'features/http_integration/dio/dio_proxy_interceptor.dart';
 
 // Web scraping exports
-export 'features/web_scraping/web_scraper.dart' hide ScrapingException;
+export 'features/web_scraping/web_scraper.dart';
+export 'features/web_scraping/scraping_exception.dart';
 export 'features/web_scraping/advanced_web_scraper.dart';
 export 'features/web_scraping/rate_limiter.dart';
+export 'features/web_scraping/enhanced_rate_limiter.dart';
 export 'features/web_scraping/user_agent_rotator.dart';
 export 'features/web_scraping/dynamic_user_agent_manager.dart';
 export 'features/web_scraping/cookie_manager.dart';
@@ -58,6 +60,11 @@ export 'features/web_scraping/web_scraper_extension.dart';
 export 'features/web_scraping/adaptive_scraping_strategy.dart';
 export 'features/web_scraping/site_reputation_tracker.dart';
 export 'features/web_scraping/scraping_logger.dart';
+export 'features/web_scraping/streaming_html_parser.dart';
+export 'features/web_scraping/memory_efficient_parser.dart';
+export 'features/web_scraping/scraping_task_queue.dart';
+export 'features/web_scraping/concurrent_web_scraper.dart';
+export 'features/web_scraping/robots_txt_handler.dart';
 
 // Headless browser exports
 export 'features/web_scraping/headless_browser/headless_browser.dart';
@@ -66,3 +73,6 @@ export 'features/web_scraping/headless_browser/headless_browser_result.dart';
 export 'features/web_scraping/headless_browser/headless_browser_service.dart';
 export 'features/web_scraping/headless_browser/headless_browser_factory.dart';
 export 'features/web_scraping/headless_browser/specialized_headless_handlers.dart';
+
+// Factory exports
+export 'core/factories/pivox_factory.dart';
