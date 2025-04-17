@@ -18,7 +18,7 @@ class PivoxApp extends StatelessWidget {
             debugShowCheckedModeBanner: false,
             theme: themeManager.getTheme(context),
             themeMode: themeManager.themeMode,
-            home: const AppLayout(),
+            home: AppLayout(key: appLayoutKey),
           );
         },
       ),

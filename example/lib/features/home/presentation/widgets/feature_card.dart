@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/widgets/animated_card.dart';
 import '../../../../core/design/app_spacing.dart';
+import '../../../../core/app/app_layout.dart';
 
 /// Feature card widget
 class FeatureCard extends StatelessWidget {
@@ -23,12 +24,17 @@ class FeatureCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedCard(
       onTap: () {
-        // Navigate to the feature screen
-        Navigator.of(context).pop(); // Close drawer if open
+        // Close the drawer if it's open
+        if (Scaffold.of(context).isDrawerOpen) {
+          Navigator.of(context).pop();
+        }
 
-        // This will trigger the bottom navigation to switch to the feature tab
-        final tabController = DefaultTabController.of(context);
-        tabController.animateTo(index);
+        // Use the global key to access the AppLayout state
+        // This is a safer approach than trying to navigate
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          // Navigate to the selected tab using the AppLayout state
+          appLayoutKey.currentState?.navigateToTab(index);
+        });
       },
       child: Row(
         children: [

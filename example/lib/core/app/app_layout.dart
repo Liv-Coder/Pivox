@@ -8,16 +8,26 @@ import '../../features/web_scraping/presentation/screens/web_scraping_screen.dar
 import '../../features/headless_browser/presentation/screens/headless_browser_screen.dart';
 import '../../features/analytics/presentation/screens/analytics_screen.dart';
 
+/// Global key for accessing AppLayout state
+final GlobalKey<AppLayoutState> appLayoutKey = GlobalKey<AppLayoutState>();
+
 /// Main app layout with bottom navigation and drawer
 class AppLayout extends StatefulWidget {
-  const AppLayout({super.key});
+  const AppLayout({super.key = const Key('app_layout')});
 
   @override
-  State<AppLayout> createState() => _AppLayoutState();
+  State<AppLayout> createState() => AppLayoutState();
 }
 
-class _AppLayoutState extends State<AppLayout>
+class AppLayoutState extends State<AppLayout>
     with SingleTickerProviderStateMixin {
+  /// Navigate to a specific tab
+  void navigateToTab(int index) {
+    if (index >= 0 && index < _screens.length) {
+      _onItemTapped(index);
+    }
+  }
+
   int _currentIndex = 0;
   late final TabController _tabController;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
